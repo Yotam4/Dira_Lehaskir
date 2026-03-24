@@ -38,7 +38,7 @@ CRAWLERS = {
 def _to_search_filters(filters) -> SearchFilters:
     return SearchFilters(
         city=filters.city,
-        neighborhoods=filters.neighborhoods,
+        neighborhoods=[filters.neighborhood] if filters.neighborhood else [],
         lat=filters.lat,
         lng=filters.lng,
         radius_m=filters.radius_m,
@@ -59,7 +59,7 @@ async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> Non
     error_msg = None
 
     try:
-        run = db.query(__import__("dirascan.db.models", fromlist=["ScrapeRun"]).ScrapeRun).get(run_id)
+        run = db.query(ScrapeRun).get(run_id)
 
         for source in sources:
             crawler_cls = CRAWLERS[source]
@@ -95,7 +95,7 @@ async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> Non
         db.close()
 
 
-@router.post("/trigger", response_model=ScrapeRunResponse)
+@router.post("/trigger", response_model=ScrapeRunResponse, status_code=202)
 def trigger_scrape(
     request: ScrapeRequest,
     background_tasks: BackgroundTasks,

@@ -11,7 +11,8 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from geoalchemy2.functions import ST_DWithin, ST_MakePoint, ST_SetSRID, ST_Within
-from sqlalchemy import func, text
+from geoalchemy2.types import Geography
+from sqlalchemy import cast, func, text
 from sqlalchemy.orm import Session
 
 from api.deps import get_db
@@ -58,8 +59,8 @@ def get_listings(
         point = ST_SetSRID(ST_MakePoint(lng, lat), 4326)
         q = q.filter(
             ST_DWithin(
-                func.cast(Listing.location, func.Geography),
-                func.cast(point, func.Geography),
+                cast(Listing.location, Geography),
+                cast(point, Geography),
                 radius_m,
             )
         )

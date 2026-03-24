@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class ScrapeFilters(BaseModel):
     city: str = ""
-    neighborhoods: list[str] = Field(default_factory=list)
+    neighborhood: str = ""   # single string matching the frontend SearchFilters.neighborhood
 
     # Point + radius search
     lat: float | None = None

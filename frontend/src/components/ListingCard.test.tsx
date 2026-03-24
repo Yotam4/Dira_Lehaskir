@@ -32,7 +32,7 @@ describe('ListingCard', () => {
 
   it('renders source badge for yad2', () => {
     render(<ListingCard listing={mockListing} />)
-    expect(screen.getByText('יד2')).toBeInTheDocument()
+    expect(screen.getByText('יד 2')).toBeInTheDocument()
   })
 
   it('renders external link when original_url is set', () => {

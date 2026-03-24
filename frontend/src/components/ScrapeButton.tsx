@@ -56,8 +56,8 @@ export function ScrapeButton({ filters, onComplete }: ScrapeButtonProps) {
       const result = await triggerScrape({
         sources: ['yad2', 'madlan', 'facebook'],
         filters: {
-          city: filters.city,
-          neighborhood: filters.neighborhood,
+          city: filters.city ?? '',
+          neighborhood: filters.neighborhood ?? '',
           lat: filters.lat,
           lng: filters.lng,
           radius_m: filters.radius_m,
