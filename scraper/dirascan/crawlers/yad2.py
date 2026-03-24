@@ -6,6 +6,7 @@ from typing import Any
 
 from playwright.async_api import BrowserContext, async_playwright
 
+from dirascan import stealth as _stealth
 from dirascan.base.crawler import BaseCrawler, RawListing, SearchFilters
 from dirascan.settings import settings
 
@@ -76,11 +77,6 @@ CITY_CODES: dict[str, str] = {
 
 _YAD2_FEED_FRAGMENT = "gw.yad2.co.il/feed-search-legato"
 _YAD2_BASE_URL = "https://www.yad2.co.il/realestate/rent"
-_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/124.0.0.0 Safari/537.36"
-)
 
 
 class Yad2Crawler(BaseCrawler):
@@ -269,6 +265,7 @@ class Yad2Crawler(BaseCrawler):
 
         try:
             await page.goto(url, wait_until="networkidle", timeout=30_000)
+            await _stealth.human_scroll(page)
         except Exception as exc:
             logger.warning("Yad2: timeout/error on page %d: %s", page_num, exc)
         finally:
@@ -290,13 +287,23 @@ class Yad2Crawler(BaseCrawler):
     async def scrape(self, filters: SearchFilters) -> list[RawListing]:
         all_listings: list[RawListing] = []
 
+        user_data_dir = settings.cookies_dir / "yad2"
+        user_data_dir.mkdir(parents=True, exist_ok=True)
+
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=settings.playwright_headless)
-            context = await browser.new_context(
-                user_agent=_USER_AGENT,
-                viewport={"width": 1280, "height": 800},
+            # Persistent context keeps cookies / localStorage between runs so
+            # the site sees us as a returning user rather than a fresh bot.
+            context = await pw.chromium.launch_persistent_context(
+                user_data_dir=str(user_data_dir),
+                headless=settings.playwright_headless,
+                user_agent=_stealth.random_user_agent(),
+                viewport=_stealth.random_viewport(),
                 locale="he-IL",
+                timezone_id="Asia/Jerusalem",
+                args=_stealth.browser_launch_args(),
             )
+            # Patch JS fingerprint tells on every page opened in this context.
+            await _stealth.apply_stealth_init(context)
             try:
                 page_num = 1
                 total_pages = 1
@@ -315,9 +322,9 @@ class Yad2Crawler(BaseCrawler):
                     page_num += 1
 
                     if page_num <= total_pages:
-                        await asyncio.sleep(settings.scraper_request_delay_seconds)
+                        await _stealth.jitter_sleep(settings.scraper_request_delay_seconds)
             finally:
-                await browser.close()
+                await context.close()
 
         if filters.max_results:
             all_listings = all_listings[: filters.max_results]

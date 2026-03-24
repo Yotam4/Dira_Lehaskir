@@ -6,6 +6,7 @@ from typing import Any
 
 from playwright.async_api import BrowserContext, async_playwright
 
+from dirascan import stealth as _stealth
 from dirascan.base.crawler import BaseCrawler, RawListing, SearchFilters
 from dirascan.settings import settings
 
@@ -55,11 +56,6 @@ CITY_SLUGS: dict[str, str] = {
 
 _MADLAN_API_FRAGMENT = "madlan.co.il/api"
 _MADLAN_BASE_URL = "https://www.madlan.co.il/for-rent"
-_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/124.0.0.0 Safari/537.36"
-)
 
 
 class MadlanCrawler(BaseCrawler):
@@ -319,6 +315,7 @@ class MadlanCrawler(BaseCrawler):
 
         try:
             await page.goto(url, wait_until="networkidle", timeout=30_000)
+            await _stealth.human_scroll(page)
         except Exception as exc:
             logger.warning("Madlan: timeout/error on page %d: %s", page_num, exc)
         finally:
@@ -342,13 +339,20 @@ class MadlanCrawler(BaseCrawler):
         all_listings: list[RawListing] = []
         seen_ids: set[str] = set()
 
+        user_data_dir = settings.cookies_dir / "madlan"
+        user_data_dir.mkdir(parents=True, exist_ok=True)
+
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(headless=settings.playwright_headless)
-            context = await browser.new_context(
-                user_agent=_USER_AGENT,
-                viewport={"width": 1440, "height": 900},
+            context = await pw.chromium.launch_persistent_context(
+                user_data_dir=str(user_data_dir),
+                headless=settings.playwright_headless,
+                user_agent=_stealth.random_user_agent(),
+                viewport=_stealth.random_viewport(),
                 locale="he-IL",
+                timezone_id="Asia/Jerusalem",
+                args=_stealth.browser_launch_args(),
             )
+            await _stealth.apply_stealth_init(context)
             try:
                 page_num = 1
                 # Madlan typically has 20-30 listings per page; cap at 20 pages
@@ -380,16 +384,15 @@ class MadlanCrawler(BaseCrawler):
                         total,
                     )
 
-                    # Stop if we've seen everything or the server says there's no more
                     if total and len(all_listings) >= total:
                         break
                     if new_count == 0:
                         break
 
                     page_num += 1
-                    await asyncio.sleep(settings.scraper_request_delay_seconds)
+                    await _stealth.jitter_sleep(settings.scraper_request_delay_seconds)
             finally:
-                await browser.close()
+                await context.close()
 
         if filters.max_results:
             all_listings = all_listings[: filters.max_results]
