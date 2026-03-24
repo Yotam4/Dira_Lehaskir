@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { MapView } from '../components/MapView'
 import { FilterPanel } from '../components/FilterPanel'
 import { ListingCard } from '../components/ListingCard'
+import { ListingDetail } from '../components/ListingDetail'
 import { ScrapeButton } from '../components/ScrapeButton'
 import { useListings } from '../hooks/useListings'
 import type { SearchFilters } from '../types/listing'
@@ -13,6 +14,7 @@ export function Home() {
   const queryClient = useQueryClient()
 
   const { data, isFetching } = useListings(filters)
+  const selectedListing = data?.items.find((l) => l.id === selectedId) ?? null
 
   const handleFilterChange = (partial: Partial<SearchFilters>) => {
     setFilters((prev) => ({ ...prev, ...partial }))
@@ -49,6 +51,11 @@ export function Home() {
           ))}
         </div>
       </div>
+
+      {/* Detail panel — shown when a listing is selected */}
+      {selectedListing && (
+        <ListingDetail listing={selectedListing} onClose={() => setSelectedId(null)} />
+      )}
 
       {/* Map */}
       <MapView

@@ -7,16 +7,17 @@ FastAPI BackgroundTask so the HTTP response returns right away.
 
 from __future__ import annotations
 
-import asyncio
 import logging
+import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from api.deps import get_db
-from api.schemas.scrape import ScrapeRequest, ScrapeRunResponse
+from api.schemas.scrape import ScrapeRequest, ScrapeRunDetailResponse, ScrapeRunResponse
 from dirascan.base.crawler import SearchFilters
+from dirascan.db.models import ScrapeRun
 from dirascan.crawlers.yad2 import Yad2Crawler
 from dirascan.crawlers.madlan import MadlanCrawler
 from dirascan.crawlers.facebook import FacebookCrawler
@@ -104,13 +105,27 @@ def trigger_scrape(
     run = create_scrape_run(db, sources=request.sources, filters=filters)
     db.commit()
 
-    background_tasks.add_task(
-        asyncio.run,
-        _run_scrape(run.id, request.sources, filters),
-    )
+    background_tasks.add_task(_run_scrape, run.id, request.sources, filters)
 
     return ScrapeRunResponse(
         run_id=run.id,
         status=run.status,
         triggered_at=run.triggered_at,
+    )
+
+
+@router.get("/runs/{run_id}", response_model=ScrapeRunDetailResponse)
+def get_scrape_run(run_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Poll the status of a triggered scrape run."""
+    run = db.query(ScrapeRun).get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Scrape run not found")
+    return ScrapeRunDetailResponse(
+        run_id=run.id,
+        status=run.status,
+        triggered_at=run.triggered_at,
+        completed_at=run.completed_at,
+        listings_found=run.listings_found,
+        listings_new=run.listings_new,
+        error_message=run.error_message,
     )

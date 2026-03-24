@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, type MutableRefObject } from 'react'
 import Map, { Marker, NavigationControl, useControl } from 'react-map-gl'
 import type { MapRef } from 'react-map-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
@@ -10,19 +10,23 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string
 // Default center: Tel Aviv
 const DEFAULT_VIEW = { longitude: 34.7818, latitude: 32.0853, zoom: 12 }
 
-// Draws the MapboxDraw control and reports drawn features upward
+// Draws the MapboxDraw control and reports drawn features upward.
+// The draw instance is captured via a ref so event handlers can call getAll().
 function DrawControl({ onDraw }: { onDraw: (geojson: string | null) => void }) {
-  useControl(
+  const drawRef: MutableRefObject<MapboxDraw | null> = useRef(null)
+
+  useControl<MapboxDraw>(
     () => {
       const draw = new MapboxDraw({
         displayControlsDefault: false,
         controls: { polygon: true, trash: true },
       })
+      drawRef.current = draw
       return draw
     },
     ({ map }) => {
       const onUpdate = () => {
-        const data = (map as any)._drawControl?.getAll?.()
+        const data = drawRef.current?.getAll()
         if (data && data.features.length > 0) {
           onDraw(JSON.stringify(data.features[0].geometry))
         } else {

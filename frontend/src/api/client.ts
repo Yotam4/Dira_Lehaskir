@@ -20,5 +20,20 @@ export async function triggerScrape(payload: {
   filters: Omit<SearchFilters, 'page' | 'page_size'>
 }) {
   const { data } = await api.post('/scrape/trigger', payload)
+  return data as { run_id: string; status: string; triggered_at: string }
+}
+
+export interface ScrapeRunStatus {
+  run_id: string
+  status: 'running' | 'completed' | 'failed'
+  triggered_at: string
+  completed_at: string | null
+  listings_found: number | null
+  listings_new: number | null
+  error_message: string | null
+}
+
+export async function fetchScrapeRun(runId: string): Promise<ScrapeRunStatus> {
+  const { data } = await api.get<ScrapeRunStatus>(`/scrape/runs/${runId}`)
   return data
 }

@@ -37,3 +37,10 @@ class ScrapeRunResponse(BaseModel):
     run_id: uuid.UUID
     status: str
     triggered_at: datetime
+
+
+class ScrapeRunDetailResponse(ScrapeRunResponse):
+    completed_at: datetime | None = None
+    listings_found: int | None = None
+    listings_new: int | None = None
+    error_message: str | None = None
