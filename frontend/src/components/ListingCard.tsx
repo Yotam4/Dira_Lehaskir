@@ -13,7 +13,10 @@ export function ListingCard({ listing, selected, onClick }: ListingCardProps) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
       style={{
         padding: '10px 12px',
         borderRadius: 8,

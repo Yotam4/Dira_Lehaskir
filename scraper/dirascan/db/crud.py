@@ -5,10 +5,11 @@ CRUD helpers used by both the API trigger endpoint and the CLI.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from geoalchemy2.elements import WKTElement
+from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -44,7 +45,7 @@ def complete_scrape_run(
     listings_new: int,
     error_message: str | None = None,
 ) -> None:
-    run.completed_at = datetime.utcnow()
+    run.completed_at = datetime.now(timezone.utc)
     run.status = "failed" if error_message else "completed"
     run.listings_found = listings_found
     run.listings_new = listings_new
@@ -77,8 +78,10 @@ def upsert_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
     if raw.lat is not None and raw.lng is not None:
         location = WKTElement(f"POINT({raw.lng} {raw.lat})", srid=4326)
 
+    now = datetime.now(timezone.utc)
+
     if existing_source:
-        listing = db.query(Listing).get(existing_source.listing_id)
+        listing = db.get(Listing, existing_source.listing_id)
         if listing:
             listing.title = raw.title or listing.title
             listing.description = raw.description or listing.description
@@ -90,9 +93,9 @@ def upsert_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
             listing.amenities = raw.amenities or listing.amenities
             listing.images = raw.images or listing.images
             listing.raw_data = raw.raw_data or listing.raw_data
-            listing.updated_at = datetime.utcnow()
+            listing.updated_at = now
             listing.scraped_at = raw.scraped_at
-            existing_source.last_seen_at = datetime.utcnow()
+            existing_source.last_seen_at = now
             db.flush()
             return listing, False
 
@@ -118,13 +121,22 @@ def upsert_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
     db.add(listing)
     db.flush()
 
-    listing_source = ListingSource(
-        listing_id=listing.id,
-        source=raw.source,
-        source_id=raw.source_id,
-        original_url=raw.original_url,
+    # ON CONFLICT DO UPDATE prevents IntegrityError if two scrape tasks race to
+    # insert the same (source, source_id) concurrently.
+    stmt = (
+        pg_insert(ListingSource)
+        .values(
+            listing_id=listing.id,
+            source=raw.source,
+            source_id=raw.source_id,
+            original_url=raw.original_url,
+        )
+        .on_conflict_do_update(
+            constraint="uq_listing_sources_source_id",
+            set_={"last_seen_at": func.now()},
+        )
     )
-    db.add(listing_source)
+    db.execute(stmt)
     db.flush()
 
     return listing, True

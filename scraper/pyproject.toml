@@ -19,6 +19,7 @@ dependencies = [
     "parsel==1.9.*",
     "click>=8.1",
     "facebook-scraper==0.2.*",
+    "tenacity==8.*",
 ]
 
 [project.optional-dependencies]

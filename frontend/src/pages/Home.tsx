@@ -41,6 +41,17 @@ export function Home() {
           <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>
             {isFetching ? 'טוען...' : `${data?.total ?? 0} תוצאות`}
           </div>
+          {!isFetching && data?.items.length === 0 && (
+            <div style={{ padding: '24px 8px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+              <div style={{ marginBottom: 6 }}>לא נמצאו דירות לפי הסינון שנבחר</div>
+              <button
+                onClick={() => setFilters({ page: 1, page_size: 50 })}
+                style={{ fontSize: 12, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                נקה סינון
+              </button>
+            </div>
+          )}
           {data?.items.map((listing) => (
             <ListingCard
               key={listing.id}

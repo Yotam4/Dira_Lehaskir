@@ -26,7 +26,16 @@ export function ScrapeButton({ filters, onComplete }: ScrapeButtonProps) {
   }
 
   const startPolling = (runId: string) => {
+    const MAX_POLLS = 100 // 100 × 3 s = 5 min max
+    let polls = 0
     intervalRef.current = setInterval(async () => {
+      polls++
+      if (polls > MAX_POLLS) {
+        stopPolling()
+        setPhase('error')
+        setMessage('הסריקה נתקעה — נסה שוב')
+        return
+      }
       try {
         const run = await fetchScrapeRun(runId)
         if (run.status === 'completed') {
@@ -41,7 +50,7 @@ export function ScrapeButton({ filters, onComplete }: ScrapeButtonProps) {
         }
         // status === 'running' → keep polling
       } catch {
-        // network hiccup — keep polling
+        // network hiccup — keep polling (will time out via MAX_POLLS)
       }
     }, 3000)
   }

@@ -33,7 +33,11 @@ export function ListingDetail({ listing, onClose }: ListingDetailProps) {
             src={listing.images[imgIndex]}
             alt={listing.title}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            onError={(e) => {
+              const img = e.target as HTMLImageElement
+              img.style.objectFit = 'none'
+              img.src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="340" height="180"><rect fill="%23e5e7eb" width="340" height="180"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" fill="%239ca3af" font-size="14" font-family="sans-serif">תמונה לא זמינה</text></svg>')}`
+            }}
           />
           {listing.images.length > 1 && (
             <>

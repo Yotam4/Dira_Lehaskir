@@ -88,7 +88,7 @@ def test_get_listings_page_size_cap(client):
 
 def test_get_listing_found(client, mock_db):
     listing = _make_mock_listing()
-    mock_db.query.return_value.get.return_value = listing
+    mock_db.get.return_value = listing
 
     resp = client.get(f"/listings/{listing.id}")
     assert resp.status_code == 200
@@ -98,7 +98,7 @@ def test_get_listing_found(client, mock_db):
 
 
 def test_get_listing_not_found(client, mock_db):
-    mock_db.query.return_value.get.return_value = None
+    mock_db.get.return_value = None
     resp = client.get(f"/listings/{uuid.uuid4()}")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Listing not found"

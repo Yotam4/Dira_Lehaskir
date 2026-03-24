@@ -51,10 +51,13 @@ def get_listings(
     # Spatial: polygon takes precedence over point+radius
     if polygon_geojson:
         try:
+            poly = json.loads(polygon_geojson)
+            if not isinstance(poly, dict) or poly.get("type") != "Polygon":
+                raise ValueError("GeoJSON type must be 'Polygon'")
             geom = func.ST_GeomFromGeoJSON(polygon_geojson)
             q = q.filter(ST_Within(Listing.location, geom))
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid polygon_geojson")
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid polygon_geojson: {exc}")
     elif lat is not None and lng is not None and radius_m is not None:
         point = ST_SetSRID(ST_MakePoint(lng, lat), 4326)
         q = q.filter(
@@ -88,7 +91,7 @@ def get_listings(
 
 @router.get("/{listing_id}", response_model=ListingResponse)
 def get_listing(listing_id: uuid.UUID, db: Session = Depends(get_db)):
-    listing = db.query(Listing).get(listing_id)
+    listing = db.get(Listing, listing_id)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
     return listing

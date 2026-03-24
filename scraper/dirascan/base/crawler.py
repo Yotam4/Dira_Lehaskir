@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -63,7 +63,7 @@ class RawListing:
     amenities: dict[str, Any] = field(default_factory=dict)
     images: list[str] = field(default_factory=list)
     raw_data: dict[str, Any] = field(default_factory=dict)
-    scraped_at: datetime = field(default_factory=datetime.utcnow)
+    scraped_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     crawl_run_id: uuid.UUID | None = None
 
 

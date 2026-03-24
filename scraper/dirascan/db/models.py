@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape
@@ -44,9 +44,9 @@ class Listing(Base):
     amenities = Column(JSONB, nullable=False, default=dict)
     images = Column(JSONB, nullable=False, default=list)
     raw_data = Column(JSONB, nullable=False, default=dict)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    scraped_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    scraped_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     @property
     def lat(self) -> float | None:
@@ -77,8 +77,8 @@ class ListingSource(Base):
     source = Column(String(20), nullable=False)
     source_id = Column(Text, nullable=False)
     original_url = Column(Text)
-    first_seen_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    last_seen_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    first_seen_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    last_seen_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<ListingSource source={self.source} source_id={self.source_id}>"
@@ -90,7 +90,7 @@ class ScrapeRun(Base):
     __tablename__ = "scrape_runs"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    triggered_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    triggered_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime(timezone=True))
     status = Column(
         String(20),

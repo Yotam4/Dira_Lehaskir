@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
+
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -51,6 +52,16 @@ def _to_search_filters(filters) -> SearchFilters:
     )
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True,
+)
+async def _scrape_with_retry(crawler_cls, filters: SearchFilters):
+    async with crawler_cls() as crawler:
+        return await crawler.scrape(filters)
+
+
 async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> None:
     """Background task: runs crawlers and writes results to DB."""
     db = SessionLocal()
@@ -64,8 +75,7 @@ async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> Non
         for source in sources:
             crawler_cls = CRAWLERS[source]
             try:
-                async with crawler_cls() as crawler:
-                    listings = await crawler.scrape(filters)
+                listings = await _scrape_with_retry(crawler_cls, filters)
                 for raw in listings:
                     raw.crawl_run_id = run_id
                     _, is_new = upsert_listing(db, raw)
@@ -91,6 +101,19 @@ async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> Non
     except Exception as exc:
         logger.error("Scrape run %s fatal error: %s", run_id, exc, exc_info=True)
         db.rollback()
+        # Best-effort: mark the run as failed so the UI doesn't hang forever
+        try:
+            run = db.get(ScrapeRun, run_id)
+            if run and run.status == "running":
+                complete_scrape_run(
+                    db, run,
+                    listings_found=total_found,
+                    listings_new=total_new,
+                    error_message=str(exc),
+                )
+                db.commit()
+        except Exception:
+            logger.error("Scrape run %s: could not mark as failed", run_id)
     finally:
         db.close()
 
