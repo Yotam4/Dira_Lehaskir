@@ -25,9 +25,13 @@ dependencies = [
 dev = [
     "pytest==8.2.*",
     "pytest-asyncio==0.23.*",
+    "pytest-mock==3.14.*",
     "black==24.*",
     "ruff==0.4.*",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [project.scripts]
 dirascan = "dirascan.cli:main"

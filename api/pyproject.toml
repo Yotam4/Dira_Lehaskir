@@ -16,3 +16,13 @@ dependencies = [
     "geoalchemy2==0.15.*",
     # dirascan package is available via ./scraper volume mount — no pip install needed
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.2.*",
+    "pytest-mock==3.14.*",
+    "httpx==0.27.*",        # required by FastAPI TestClient
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
