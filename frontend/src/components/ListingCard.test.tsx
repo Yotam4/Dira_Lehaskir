@@ -16,7 +16,8 @@ describe('ListingCard', () => {
 
   it('renders rooms', () => {
     render(<ListingCard listing={mockListing} />)
-    expect(screen.getByText(/3.*חד/)).toBeInTheDocument()
+    // Use regex anchored to start so it matches "3 חד׳" but not the title "דירת 3 חדרים..."
+    expect(screen.getByText(/^\d+\.?\d* חד/)).toBeInTheDocument()
   })
 
   it('renders sqm', () => {
@@ -26,8 +27,8 @@ describe('ListingCard', () => {
 
   it('renders neighborhood and city', () => {
     render(<ListingCard listing={mockListing} />)
-    expect(screen.getByText(/לב העיר/)).toBeInTheDocument()
-    expect(screen.getByText(/תל אביב/)).toBeInTheDocument()
+    // Location div renders "neighborhood, city" — exact match avoids hitting the title
+    expect(screen.getByText('לב העיר, תל אביב')).toBeInTheDocument()
   })
 
   it('renders source badge for yad2', () => {

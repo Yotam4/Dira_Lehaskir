@@ -56,7 +56,7 @@ def test_trigger_scrape_bad_payload(client):
 
 def test_get_run_running(client, mock_db):
     run = _make_mock_scrape_run(status="running")
-    mock_db.query.return_value.get.return_value = run
+    mock_db.get.return_value = run
 
     resp = client.get(f"/scrape/runs/{run.id}")
     assert resp.status_code == 200
@@ -73,7 +73,7 @@ def test_get_run_completed(client, mock_db):
         listings_found=42,
         listings_new=7,
     )
-    mock_db.query.return_value.get.return_value = run
+    mock_db.get.return_value = run
 
     resp = client.get(f"/scrape/runs/{run.id}")
     assert resp.status_code == 200
@@ -89,7 +89,7 @@ def test_get_run_failed(client, mock_db):
         completed_at=datetime.utcnow(),
         error_message="Playwright timeout",
     )
-    mock_db.query.return_value.get.return_value = run
+    mock_db.get.return_value = run
 
     resp = client.get(f"/scrape/runs/{run.id}")
     assert resp.status_code == 200
@@ -99,7 +99,7 @@ def test_get_run_failed(client, mock_db):
 
 
 def test_get_run_not_found(client, mock_db):
-    mock_db.query.return_value.get.return_value = None
+    mock_db.get.return_value = None
     resp = client.get(f"/scrape/runs/{uuid.uuid4()}")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Scrape run not found"

@@ -63,7 +63,8 @@ describe('ListingDetail', () => {
 
   it('renders city and neighborhood', () => {
     render(<ListingDetail listing={mockListing} onClose={vi.fn()} />)
-    expect(screen.getByText(/תל אביב/)).toBeInTheDocument()
-    expect(screen.getByText(/לב העיר/)).toBeInTheDocument()
+    // Location line: "address · neighborhood · city" — לב העיר is unique to this div
+    const locationEl = screen.getByText(/לב העיר/)
+    expect(locationEl.textContent).toContain('תל אביב')
   })
 })

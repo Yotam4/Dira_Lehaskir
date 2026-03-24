@@ -59,7 +59,7 @@ async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> Non
     error_msg = None
 
     try:
-        run = db.query(ScrapeRun).get(run_id)
+        run = db.get(ScrapeRun, run_id)
 
         for source in sources:
             crawler_cls = CRAWLERS[source]
@@ -117,7 +117,7 @@ def trigger_scrape(
 @router.get("/runs/{run_id}", response_model=ScrapeRunDetailResponse)
 def get_scrape_run(run_id: uuid.UUID, db: Session = Depends(get_db)):
     """Poll the status of a triggered scrape run."""
-    run = db.query(ScrapeRun).get(run_id)
+    run = db.get(ScrapeRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Scrape run not found")
     return ScrapeRunDetailResponse(
