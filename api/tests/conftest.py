@@ -38,6 +38,7 @@ def _make_mock_listing(**kwargs):
         original_url="https://yad2.co.il/item/abc123",
         title="דירת 3 חדרים בתל אביב",
         description="דירה מרווחת",
+        phone=None,
         price=5500,
         rooms=3.0,
         sqm=75.0,

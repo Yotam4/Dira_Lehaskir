@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
-import { X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, ExternalLink, ChevronLeft, ChevronRight, Phone, Star } from 'lucide-react'
 import type { Listing } from '../types/listing'
 import { SOURCE_COLORS, SOURCE_LABELS } from '../types/listing'
 
 interface ListingDetailProps {
   listing: Listing
   onClose: () => void
+  isFavorite?: boolean
+  onToggleFavorite?: () => void
 }
 
-export function ListingDetail({ listing, onClose }: ListingDetailProps) {
+export function ListingDetail({ listing, onClose, isFavorite, onToggleFavorite }: ListingDetailProps) {
   const [imgIndex, setImgIndex] = useState(0)
   const color = SOURCE_COLORS[listing.source]
   const hasImages = listing.images.length > 0
@@ -66,14 +68,25 @@ export function ListingDetail({ listing, onClose }: ListingDetailProps) {
         </div>
       )}
 
-      {/* Header: source badge + close */}
+      {/* Header: source badge + favourite + close */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid #f3f4f6', flexShrink: 0 }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', background: color, borderRadius: 10, padding: '2px 10px' }}>
           {SOURCE_LABELS[listing.source]}
         </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center' }}>
-          <X size={18} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {onToggleFavorite && (
+            <button
+              onClick={onToggleFavorite}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: isFavorite ? '#f59e0b' : '#d1d5db', display: 'flex', alignItems: 'center' }}
+              title={isFavorite ? 'הסר ממועדפים' : 'הוסף למועדפים'}
+            >
+              <Star size={16} fill={isFavorite ? '#f59e0b' : 'none'} />
+            </button>
+          )}
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Scrollable content */}
@@ -96,6 +109,16 @@ export function ListingDetail({ listing, onClose }: ListingDetailProps) {
           <div style={{ fontSize: 13, color: '#374151', marginBottom: 10, lineHeight: 1.5 }}>
             {[listing.address, listing.neighborhood, listing.city].filter(Boolean).join(' · ')}
           </div>
+        )}
+
+        {/* Phone */}
+        {listing.phone && (
+          <a
+            href={`tel:${listing.phone}`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', marginBottom: 10 }}
+          >
+            <Phone size={13} /> {listing.phone}
+          </a>
         )}
 
         {/* Description */}

@@ -160,6 +160,7 @@ class FacebookCrawler(BaseCrawler):
         rooms: float | None = extracted.get("rooms")
         sqm: float | None = extracted.get("sqm")
         floor: int | None = extracted.get("floor")
+        phone: str | None = extracted.get("phone")
 
         # Price range filter (skip if clearly outside)
         if price is not None:
@@ -205,6 +206,7 @@ class FacebookCrawler(BaseCrawler):
             sqm=sqm,
             floor_raw=str(floor) if floor else None,
             floor=floor,
+            phone=phone,
             address=None,
             city=filters.city or "",
             neighborhood=None,

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from geoalchemy2.functions import ST_DWithin, ST_MakePoint, ST_SetSRID, ST_Within
@@ -20,6 +20,13 @@ from api.schemas.listing import ListingResponse, ListingsPage
 from dirascan.db.models import Listing
 
 router = APIRouter()
+
+_SORT_COLUMNS = {
+    "price": Listing.price,
+    "rooms": Listing.rooms,
+    "sqm": Listing.sqm,
+    "scraped_at": Listing.scraped_at,
+}
 
 
 @router.get("", response_model=ListingsPage)
@@ -36,11 +43,15 @@ def get_listings(
     city: Optional[str] = Query(None),
     neighborhood: Optional[str] = Query(None),
     # --- Attribute filters ---
-    source: Optional[str] = Query(None, description="yad2 | madlan | facebook"),
+    source: Optional[str] = Query(None, description="yad2 | madlan | facebook (single, legacy)"),
+    sources: Optional[List[str]] = Query(None, description="Repeatable: sources=yad2&sources=madlan"),
     price_min: Optional[int] = Query(None),
     price_max: Optional[int] = Query(None),
     rooms_min: Optional[float] = Query(None),
     rooms_max: Optional[float] = Query(None),
+    # --- Sort ---
+    sort_by: Optional[str] = Query(None, description="price | rooms | sqm | scraped_at"),
+    order: Optional[str] = Query(None, description="asc | desc"),
     # --- Pagination ---
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -74,8 +85,12 @@ def get_listings(
         q = q.filter(Listing.city.ilike(f"%{city.strip()}%"))
     if neighborhood:
         q = q.filter(Listing.neighborhood.ilike(f"%{neighborhood.strip()}%"))
-    if source:
-        q = q.filter(Listing.source == source)
+
+    # Multi-source filter: `sources` (array) takes precedence over `source` (single, legacy)
+    active_sources = sources if sources else ([source] if source else None)
+    if active_sources:
+        q = q.filter(Listing.source.in_(active_sources))
+
     if price_min is not None:
         q = q.filter(Listing.price >= price_min)
     if price_max is not None:
@@ -86,7 +101,15 @@ def get_listings(
         q = q.filter(Listing.rooms <= rooms_max)
 
     total = q.count()
-    items = q.order_by(Listing.scraped_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+    # Sort
+    sort_col = _SORT_COLUMNS.get(sort_by or "", Listing.scraped_at)
+    if order == "asc":
+        q = q.order_by(sort_col.asc())
+    else:
+        q = q.order_by(sort_col.desc())
+
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
 
     return ListingsPage(items=items, total=total, page=page, page_size=page_size)
 

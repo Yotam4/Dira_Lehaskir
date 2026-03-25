@@ -6,6 +6,7 @@ export interface Listing {
   original_url: string | null
   title: string
   description: string | null
+  phone: string | null
   price: number | null       // ILS
   rooms: number | null       // can be 3.5
   sqm: number | null
@@ -43,12 +44,16 @@ export interface SearchFilters {
   // Drawn polygon (GeoJSON Polygon geometry JSON string)
   polygon_geojson?: string
 
-  // Attribute filters
-  source?: ListingSource
+  // Attribute filters — multi-source (repeatable param)
+  sources?: ListingSource[]
   price_min?: number
   price_max?: number
   rooms_min?: number
   rooms_max?: number
+
+  // Sort
+  sort_by?: 'price' | 'rooms' | 'sqm' | 'scraped_at'
+  order?: 'asc' | 'desc'
 
   // Pagination
   page?: number

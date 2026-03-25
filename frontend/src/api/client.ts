@@ -4,6 +4,20 @@ import type { ListingsPage, SearchFilters } from '../types/listing'
 const api = axios.create({
   baseURL: '/api',
   timeout: 15_000,
+  paramsSerializer: {
+    serialize: (params: Record<string, unknown>) => {
+      const sp = new URLSearchParams()
+      for (const [key, val] of Object.entries(params)) {
+        if (val === undefined || val === null) continue
+        if (Array.isArray(val)) {
+          val.forEach((v) => sp.append(key, String(v)))
+        } else {
+          sp.set(key, String(val))
+        }
+      }
+      return sp.toString()
+    },
+  },
 })
 
 export async function fetchListings(filters: SearchFilters): Promise<ListingsPage> {
@@ -18,7 +32,7 @@ export async function fetchListing(id: string) {
 
 export async function triggerScrape(payload: {
   sources: string[]
-  filters: Omit<SearchFilters, 'page' | 'page_size'>
+  filters: Omit<SearchFilters, 'page' | 'page_size' | 'sort_by' | 'order'>
 }) {
   const { data } = await api.post('/scrape/trigger', payload)
   return data as { run_id: string; status: string; triggered_at: string }

@@ -113,7 +113,7 @@ class TestExtractAll:
 
     def test_empty_string(self):
         result = extract_all("")
-        assert result == {"price": None, "rooms": None, "sqm": None, "floor": None}
+        assert result == {"price": None, "rooms": None, "sqm": None, "floor": None, "phone": None}
 
     def test_partial_data(self):
         result = extract_all("דירה יפה, 4500 ₪ לחודש")

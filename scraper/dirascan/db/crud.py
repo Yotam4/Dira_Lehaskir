@@ -93,6 +93,7 @@ def upsert_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
             listing.rooms = raw.rooms if raw.rooms is not None else listing.rooms
             listing.sqm = raw.sqm if raw.sqm is not None else listing.sqm
             listing.floor = raw.floor if raw.floor is not None else listing.floor
+            listing.phone = raw.phone if raw.phone is not None else listing.phone
             listing.location = location or listing.location
             listing.amenities = raw.amenities or listing.amenities
             listing.images = raw.images or listing.images
@@ -113,6 +114,7 @@ def upsert_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
         rooms=raw.rooms,
         sqm=raw.sqm,
         floor=raw.floor,
+        phone=raw.phone,
         address=raw.address,
         city=raw.city or "",
         neighborhood=raw.neighborhood,

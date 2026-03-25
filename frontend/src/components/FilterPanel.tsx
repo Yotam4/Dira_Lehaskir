@@ -1,15 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
+import { Star } from 'lucide-react'
 import type { SearchFilters, ListingSource } from '../types/listing'
-import { SOURCE_LABELS } from '../types/listing'
+import { SOURCE_COLORS, SOURCE_LABELS } from '../types/listing'
 
 interface FilterPanelProps {
   filters: SearchFilters
   onChange: (filters: SearchFilters) => void
+  favoritesOnly: boolean
+  onToggleFavoritesOnly: () => void
 }
 
 const SOURCES: ListingSource[] = ['yad2', 'madlan', 'facebook']
 
-export function FilterPanel({ filters, onChange }: FilterPanelProps) {
+const PRESETS: { label: string; partial: Partial<SearchFilters> }[] = [
+  { label: '2-3 חד׳', partial: { rooms_min: 2, rooms_max: 3 } },
+  { label: 'עד ₪6,000', partial: { price_max: 6000 } },
+  { label: 'עד ₪8,000', partial: { price_max: 8000 } },
+]
+
+export function FilterPanel({ filters, onChange, favoritesOnly, onToggleFavoritesOnly }: FilterPanelProps) {
   const set = (partial: Partial<SearchFilters>) => onChange({ ...filters, ...partial, page: 1 })
 
   // Local draft state for text inputs — debounce before firing onChange
@@ -40,9 +49,39 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
     filters.price_max != null &&
     filters.price_min > filters.price_max
 
+  const activeSources = filters.sources ?? []
+  const toggleSource = (s: ListingSource) => {
+    const next = activeSources.includes(s)
+      ? activeSources.filter((x) => x !== s)
+      : [...activeSources, s]
+    set({ sources: next.length ? next : undefined })
+  }
+
   return (
     <div style={{ padding: '12px', background: '#fff', borderRadius: 8, minWidth: 240 }}>
-      <h3 style={{ marginBottom: 12, fontSize: 14, fontWeight: 600 }}>סינון</h3>
+      <h3 style={{ marginBottom: 8, fontSize: 14, fontWeight: 600 }}>סינון</h3>
+
+      {/* Quick-filter presets */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+        {PRESETS.map((p) => (
+          <button
+            key={p.label}
+            onClick={() => set(p.partial)}
+            style={{
+              padding: '3px 8px',
+              borderRadius: 10,
+              border: '1px solid #d1d5db',
+              background: '#f9fafb',
+              color: '#374151',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontWeight: 500,
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
 
       <label style={labelStyle}>עיר</label>
       <input
@@ -114,13 +153,13 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
         {SOURCES.map((s) => (
           <button
             key={s}
-            onClick={() => set({ source: filters.source === s ? undefined : s })}
+            onClick={() => toggleSource(s)}
             style={{
               padding: '4px 10px',
               borderRadius: 12,
-              border: '1px solid #ccc',
-              background: filters.source === s ? '#3b82f6' : '#f3f4f6',
-              color: filters.source === s ? '#fff' : '#374151',
+              border: `1px solid ${activeSources.includes(s) ? SOURCE_COLORS[s] : '#ccc'}`,
+              background: activeSources.includes(s) ? SOURCE_COLORS[s] : '#f3f4f6',
+              color: activeSources.includes(s) ? '#fff' : '#374151',
               cursor: 'pointer',
               fontSize: 12,
             }}
@@ -130,11 +169,33 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
         ))}
       </div>
 
+      {/* Favourites toggle */}
+      <button
+        onClick={onToggleFavoritesOnly}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '5px 10px',
+          borderRadius: 8,
+          border: `1px solid ${favoritesOnly ? '#f59e0b' : '#d1d5db'}`,
+          background: favoritesOnly ? '#fef3c7' : '#f9fafb',
+          color: favoritesOnly ? '#92400e' : '#374151',
+          cursor: 'pointer',
+          fontSize: 12,
+          marginBottom: 8,
+          width: '100%',
+        }}
+      >
+        <Star size={12} fill={favoritesOnly ? '#f59e0b' : 'none'} color={favoritesOnly ? '#f59e0b' : '#9ca3af'} />
+        מועדפים בלבד
+      </button>
+
       {(filters.lat || filters.polygon_geojson) && (
         <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
           {filters.polygon_geojson
-            ? '🔷 חיפוש לפי פוליגון מצויר'
-            : `📍 רדיוס ${filters.radius_m ?? 1000}מ׳ מהנקודה שנבחרה`}
+            ? 'חיפוש לפי פוליגון מצויר'
+            : `רדיוס ${filters.radius_m ?? 1000}מ׳ מהנקודה שנבחרה`}
           <button
             style={{ marginRight: 8, fontSize: 11, color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}
             onClick={() => set({ lat: undefined, lng: undefined, radius_m: undefined, polygon_geojson: undefined })}

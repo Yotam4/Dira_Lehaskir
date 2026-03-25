@@ -39,6 +39,7 @@ class Listing(Base):
     sqm = Column(Numeric(6, 1))
     floor = Column(SmallInteger)
     address = Column(Text)
+    phone = Column(Text)
     city = Column(Text, nullable=False)
     neighborhood = Column(Text)
     location = Column(Geometry("POINT", srid=4326))   # PostGIS point (lng, lat)

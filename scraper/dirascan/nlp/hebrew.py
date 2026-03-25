@@ -108,6 +108,25 @@ def extract_floor(text: str) -> int | None:
 
 
 # ---------------------------------------------------------------------------
+# Phone extraction — returns normalised Israeli phone number or None
+# ---------------------------------------------------------------------------
+
+_PHONE_PATTERNS = [
+    r"0[5][0-9][-\s]?\d{3}[-\s]?\d{4}",   # Israeli mobile: 05X-XXX-XXXX
+    r"0[23489][-\s]?\d{7}",                  # Israeli landline: 0X-XXXXXXX
+]
+
+
+def extract_phone(text: str) -> str | None:
+    for pattern in _PHONE_PATTERNS:
+        match = re.search(pattern, text)
+        if match:
+            # Normalise: collapse spaces, keep dashes
+            return re.sub(r"\s+", "", match.group(0))
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Convenience: extract all fields at once
 # ---------------------------------------------------------------------------
 
@@ -117,4 +136,5 @@ def extract_all(text: str) -> dict:
         "rooms": extract_rooms(text),
         "sqm": extract_sqm(text),
         "floor": extract_floor(text),
+        "phone": extract_phone(text),
     }

@@ -15,6 +15,7 @@ class ListingResponse(BaseModel):
     original_url: str | None
     title: str
     description: str | None
+    phone: str | None
     price: int | None
     rooms: float | None
     sqm: float | None

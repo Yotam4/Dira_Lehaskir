@@ -6,6 +6,7 @@ export const mockListing: Listing = {
   original_url: 'https://yad2.co.il/item/abc123',
   title: 'דירת 3 חדרים בתל אביב',
   description: 'דירה מרווחת עם מרפסת נוף לים',
+  phone: null,
   price: 5500,
   rooms: 3,
   sqm: 75,

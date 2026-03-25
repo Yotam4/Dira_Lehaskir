@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
-import Map, { Marker, NavigationControl, useControl } from 'react-map-gl'
-import type { MapRef } from 'react-map-gl'
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import Map, { NavigationControl, Source, Layer, useControl } from 'react-map-gl'
+import type { MapRef, LayerProps } from 'react-map-gl'
+import type { FeatureCollection } from 'geojson'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import type { Listing, SearchFilters } from '../types/listing'
 import { SOURCE_COLORS } from '../types/listing'
@@ -74,9 +75,77 @@ export function MapView({
     )
   }, [listings])
 
+  // Build GeoJSON from listings (memoised to avoid unnecessary rebuilds)
+  const geojson = useMemo<FeatureCollection>(() => ({
+    type: 'FeatureCollection',
+    features: listings
+      .filter((l) => l.lat != null && l.lng != null)
+      .map((l) => ({
+        type: 'Feature',
+        properties: {
+          id: l.id,
+          color: SOURCE_COLORS[l.source],
+          selected: l.id === selectedId,
+        },
+        geometry: { type: 'Point', coordinates: [l.lng!, l.lat!] },
+      })),
+  }), [listings, selectedId])
+
+  // Layer definitions
+  const clusterLayer: LayerProps = {
+    id: 'clusters',
+    type: 'circle',
+    source: 'listings',
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': ['step', ['get', 'point_count'], '#93c5fd', 10, '#3b82f6', 30, '#1d4ed8'],
+      'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 30, 28],
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#fff',
+    },
+  }
+
+  const clusterCountLayer: LayerProps = {
+    id: 'cluster-count',
+    type: 'symbol',
+    source: 'listings',
+    filter: ['has', 'point_count'],
+    layout: {
+      'text-field': '{point_count_abbreviated}',
+      'text-size': 12,
+    },
+    paint: { 'text-color': '#fff' },
+  }
+
+  const unclusteredLayer: LayerProps = {
+    id: 'unclustered-point',
+    type: 'circle',
+    source: 'listings',
+    filter: ['!', ['has', 'point_count']],
+    paint: {
+      'circle-color': ['get', 'color'],
+      'circle-radius': ['case', ['==', ['get', 'id'], selectedId ?? ''], 10, 7],
+      'circle-stroke-width': ['case', ['==', ['get', 'id'], selectedId ?? ''], 3, 2],
+      'circle-stroke-color': ['case', ['==', ['get', 'id'], selectedId ?? ''], '#111', '#fff'],
+    },
+  }
+
   const handleMapClick = useCallback(
-    (e: mapboxgl.MapMouseEvent) => {
-      if (radiusMode) {
+    (e: any) => {
+      const features = e.features as Array<{ layer: { id: string }; properties: Record<string, unknown>; geometry: { coordinates: number[] } }> | undefined
+      if (features && features.length > 0) {
+        const feature = features[0]
+        if (feature.layer.id === 'clusters') {
+          const clusterId = feature.properties?.cluster_id as number
+          const mapInstance = mapRef.current?.getMap() as any
+          const source = mapInstance?.getSource('listings')
+          source?.getClusterExpansionZoom(clusterId).then((zoom: number) => {
+            mapRef.current?.easeTo({ center: feature.geometry.coordinates as [number, number], zoom })
+          })
+        } else if (feature.layer.id === 'unclustered-point') {
+          onSelectListing(feature.properties?.id as string)
+        }
+      } else if (radiusMode) {
         onFilterChange({
           lat: e.lngLat.lat,
           lng: e.lngLat.lng,
@@ -86,7 +155,7 @@ export function MapView({
         setRadiusMode(false)
       }
     },
-    [radiusMode, onFilterChange]
+    [radiusMode, onFilterChange, onSelectListing]
   )
 
   return (
@@ -106,7 +175,7 @@ export function MapView({
             fontWeight: 500,
           }}
         >
-          📍 חיפוש רדיוס
+          חיפוש רדיוס
         </button>
         {filters.radius_m && (
           <select
@@ -130,6 +199,7 @@ export function MapView({
         mapStyle="mapbox://styles/mapbox/streets-v12"
         onClick={handleMapClick}
         cursor={radiusMode ? 'crosshair' : 'grab'}
+        interactiveLayerIds={['clusters', 'unclustered-point']}
       >
         <NavigationControl position="bottom-left" />
 
@@ -140,40 +210,36 @@ export function MapView({
           }
         />
 
-        {/* Listing markers */}
-        {listings.map((listing) =>
-          listing.lat != null && listing.lng != null ? (
-            <Marker
-              key={listing.id}
-              longitude={listing.lng}
-              latitude={listing.lat}
-              onClick={(e) => {
-                e.originalEvent.stopPropagation()
-                onSelectListing(listing.id)
-              }}
-            >
-              <div
-                style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: '50%',
-                  background: SOURCE_COLORS[listing.source],
-                  border: selectedId === listing.id ? '3px solid #111' : '2px solid #fff',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-                  transform: selectedId === listing.id ? 'scale(1.5)' : 'scale(1)',
-                  transition: 'transform 0.15s',
-                }}
-              />
-            </Marker>
-          ) : null
-        )}
+        {/* Clustered listing markers */}
+        <Source
+          id="listings"
+          type="geojson"
+          data={geojson}
+          cluster={true}
+          clusterMaxZoom={14}
+          clusterRadius={50}
+        >
+          <Layer {...clusterLayer} />
+          <Layer {...clusterCountLayer} />
+          <Layer {...unclusteredLayer} />
+        </Source>
 
         {/* Radius indicator marker */}
         {filters.lat != null && filters.lng != null && (
-          <Marker longitude={filters.lng} latitude={filters.lat}>
-            <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#1d4ed8', border: '3px solid #fff', boxShadow: '0 1px 6px rgba(0,0,0,0.4)' }} />
-          </Marker>
+          <Source
+            id="radius-center"
+            type="geojson"
+            data={{
+              type: 'FeatureCollection',
+              features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [filters.lng, filters.lat] } }],
+            }}
+          >
+            <Layer
+              id="radius-center-point"
+              type="circle"
+              paint={{ 'circle-color': '#1d4ed8', 'circle-radius': 9, 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' }}
+            />
+          </Source>
         )}
       </Map>
     </div>

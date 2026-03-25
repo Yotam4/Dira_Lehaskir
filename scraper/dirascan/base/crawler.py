@@ -60,6 +60,7 @@ class RawListing:
     neighborhood: str | None = None
     lat: float | None = None
     lng: float | None = None
+    phone: str | None = None
     amenities: dict[str, Any] = field(default_factory=dict)
     images: list[str] = field(default_factory=list)
     raw_data: dict[str, Any] = field(default_factory=dict)
