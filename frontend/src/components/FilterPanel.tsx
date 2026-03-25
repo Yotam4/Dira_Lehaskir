@@ -18,8 +18,17 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Sync drafts when filters are reset externally (e.g. "clear filters" button)
-  useEffect(() => { setCityDraft(filters.city ?? '') }, [filters.city])
-  useEffect(() => { setNeighborhoodDraft(filters.neighborhood ?? '') }, [filters.neighborhood])
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setCityDraft(filters.city ?? '')
+  }, [filters.city])
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setNeighborhoodDraft(filters.neighborhood ?? '')
+  }, [filters.neighborhood])
+
+  // Clear pending debounce on unmount
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current) }, [])
 
   const debouncedSet = (partial: Partial<SearchFilters>) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)

@@ -162,4 +162,5 @@ def _filters_to_dict(filters: SearchFilters) -> dict[str, Any]:
         "price_max": filters.price_max,
         "rooms_min": filters.rooms_min,
         "rooms_max": filters.rooms_max,
+        "max_results": filters.max_results,
     }

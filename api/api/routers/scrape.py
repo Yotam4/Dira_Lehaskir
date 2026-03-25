@@ -82,6 +82,9 @@ async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> Non
 
     try:
         run = db.get(ScrapeRun, run_id)
+        if not run:
+            logger.error("Scrape run %s not found in database — cannot proceed", run_id)
+            return
 
         for source in sources:
             crawler_cls = CRAWLERS[source]

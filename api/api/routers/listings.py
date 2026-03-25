@@ -54,11 +54,13 @@ def get_listings(
             poly = json.loads(polygon_geojson)
             if not isinstance(poly, dict) or poly.get("type") != "Polygon":
                 raise ValueError("GeoJSON type must be 'Polygon'")
+            if not poly.get("coordinates"):
+                raise ValueError("Polygon must have coordinates")
             geom = func.ST_GeomFromGeoJSON(polygon_geojson)
             q = q.filter(ST_Within(Listing.location, geom))
         except (json.JSONDecodeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=f"Invalid polygon_geojson: {exc}")
-    elif lat is not None and lng is not None and radius_m is not None:
+    elif lat is not None and lng is not None and radius_m is not None and radius_m > 0:
         point = ST_SetSRID(ST_MakePoint(lng, lat), 4326)
         q = q.filter(
             ST_DWithin(

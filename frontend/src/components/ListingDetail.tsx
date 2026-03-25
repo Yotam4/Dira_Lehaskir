@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Listing } from '../types/listing'
 import { SOURCE_COLORS, SOURCE_LABELS } from '../types/listing'
@@ -12,6 +12,9 @@ export function ListingDetail({ listing, onClose }: ListingDetailProps) {
   const [imgIndex, setImgIndex] = useState(0)
   const color = SOURCE_COLORS[listing.source]
   const hasImages = listing.images.length > 0
+
+  // Reset image index when the listing changes
+  useEffect(() => { setImgIndex(0) }, [listing.id])
 
   return (
     <div
@@ -41,14 +44,16 @@ export function ListingDetail({ listing, onClose }: ListingDetailProps) {
           />
           {listing.images.length > 1 && (
             <>
+              {/* ChevronRight on the right = next image */}
               <button
-                onClick={() => setImgIndex((i) => (i - 1 + listing.images.length) % listing.images.length)}
+                onClick={() => setImgIndex((i) => (i + 1) % listing.images.length)}
                 style={arrowBtn}
               >
                 <ChevronRight size={16} />
               </button>
+              {/* ChevronLeft on the left = previous image */}
               <button
-                onClick={() => setImgIndex((i) => (i + 1) % listing.images.length)}
+                onClick={() => setImgIndex((i) => (i - 1 + listing.images.length) % listing.images.length)}
                 style={{ ...arrowBtn, left: 8, right: 'auto' }}
               >
                 <ChevronLeft size={16} />
