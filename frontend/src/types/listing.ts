@@ -19,6 +19,7 @@ export interface Listing {
   images: string[]
   scraped_at: string
   created_at: string
+  updated_at: string
 }
 
 export interface ListingsPage {

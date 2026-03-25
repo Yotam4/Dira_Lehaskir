@@ -8,6 +8,9 @@ Usage:
 """
 
 import asyncio
+import sys
+from pathlib import Path
+
 import click
 
 from dirascan.base.crawler import SearchFilters
@@ -63,6 +66,7 @@ def scrape(city, source, price_min, price_max, rooms_min, rooms_max, max_results
 
             total_found = 0
             total_new = 0
+            error_occurred = False
 
             for src in sources:
                 crawler_cls = CRAWLERS[src]
@@ -82,6 +86,7 @@ def scrape(city, source, price_min, price_max, rooms_min, rooms_max, max_results
                     click.echo(f"  {src}: not yet implemented — skipping")
                 except Exception as exc:
                     click.echo(f"  {src}: ERROR — {exc}", err=True)
+                    error_occurred = True
 
             complete_scrape_run(
                 db,
@@ -91,6 +96,8 @@ def scrape(city, source, price_min, price_max, rooms_min, rooms_max, max_results
             )
             db.commit()
             click.echo(f"\nDone. Found {total_found}, new {total_new}.")
+            if error_occurred:
+                sys.exit(1)
         finally:
             db.close()
 
@@ -100,11 +107,10 @@ def scrape(city, source, price_min, price_max, rooms_min, rooms_max, max_results
 @main.command()
 def migrate():
     """Run Alembic migrations (alias for alembic upgrade head)."""
-    import subprocess, sys
-    result = subprocess.run(
-        ["alembic", "upgrade", "head"],
-        cwd="/app",
-    )
+    import subprocess
+    # In Docker, alembic.ini is at /app; in local dev it's in the scraper/ directory
+    alembic_dir = "/app" if Path("/app/alembic.ini").exists() else str(Path(__file__).parent.parent)
+    result = subprocess.run(["alembic", "upgrade", "head"], cwd=alembic_dir)
     sys.exit(result.returncode)
 
 

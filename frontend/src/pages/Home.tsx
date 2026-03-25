@@ -13,7 +13,7 @@ export function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  const { data, isFetching } = useListings(filters)
+  const { data, isFetching, isError } = useListings(filters)
   const selectedListing = data?.items.find((l) => l.id === selectedId) ?? null
 
   const handleFilterChange = (partial: Partial<SearchFilters>) => {
@@ -38,8 +38,8 @@ export function Home() {
 
         {/* Results list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-          <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>
-            {isFetching ? 'טוען...' : `${data?.total ?? 0} תוצאות`}
+          <div style={{ fontSize: 12, color: isError ? '#ef4444' : '#9ca3af', marginBottom: 8 }}>
+            {isFetching ? 'טוען...' : isError ? 'שגיאה בטעינת הדירות' : `${data?.total ?? 0} תוצאות`}
           </div>
           {!isFetching && data?.items.length === 0 && (
             <div style={{ padding: '24px 8px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>

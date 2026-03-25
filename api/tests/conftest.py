@@ -51,6 +51,7 @@ def _make_mock_listing(**kwargs):
         images=[],
         scraped_at=datetime.utcnow(),
         created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
     )
     defaults.update(kwargs)
     obj = MagicMock()

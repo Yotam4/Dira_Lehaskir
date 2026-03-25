@@ -28,6 +28,7 @@ class ListingResponse(BaseModel):
     images: list[str]
     scraped_at: datetime
     created_at: datetime
+    updated_at: datetime
 
 
 class ListingsPage(BaseModel):

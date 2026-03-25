@@ -355,8 +355,9 @@ class MadlanCrawler(BaseCrawler):
             await _stealth.apply_stealth_init(context)
             try:
                 page_num = 1
-                # Madlan typically has 20-30 listings per page; cap at 20 pages
+                # Derived dynamically from total count; hard cap to avoid runaway
                 max_pages = 20
+                known_total = 0
 
                 while page_num <= max_pages:
                     if filters.max_results and len(all_listings) >= filters.max_results:
@@ -367,6 +368,11 @@ class MadlanCrawler(BaseCrawler):
                     if not batch:
                         logger.info("Madlan: no listings on page %d, stopping", page_num)
                         break
+
+                    # Update max_pages from server total (20–30 listings/page)
+                    if total > 0:
+                        known_total = total
+                        max_pages = min(max_pages, -(-known_total // 25) + 1)  # ceil div
 
                     # Deduplicate across pages
                     new_count = 0
@@ -381,10 +387,10 @@ class MadlanCrawler(BaseCrawler):
                         page_num,
                         new_count,
                         len(all_listings),
-                        total,
+                        known_total,
                     )
 
-                    if total and len(all_listings) >= total:
+                    if known_total and len(all_listings) >= known_total:
                         break
                     if new_count == 0:
                         break

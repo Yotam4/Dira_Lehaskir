@@ -174,8 +174,11 @@ class Yad2Crawler(BaseCrawler):
 
         # Location
         coords = item.get("coordinates") or {}
-        lat: float | None = coords.get("latitude")
-        lng: float | None = coords.get("longitude")
+        try:
+            lat: float | None = float(coords["latitude"]) if coords.get("latitude") is not None else None
+            lng: float | None = float(coords["longitude"]) if coords.get("longitude") is not None else None
+        except (ValueError, TypeError):
+            lat, lng = None, None
 
         # Address
         street = item.get("street") or ""

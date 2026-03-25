@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ScrapeFilters(BaseModel):
@@ -31,6 +31,13 @@ class ScrapeRequest(BaseModel):
         default=["yad2", "madlan", "facebook"]
     )
     filters: ScrapeFilters = Field(default_factory=ScrapeFilters)
+
+    @field_validator("sources")
+    @classmethod
+    def sources_not_empty(cls, v: list) -> list:
+        if not v:
+            raise ValueError("sources must contain at least one value")
+        return v
 
 
 class ScrapeRunResponse(BaseModel):

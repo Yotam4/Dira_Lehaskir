@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SearchFilters, ListingSource } from '../types/listing'
 import { SOURCE_LABELS } from '../types/listing'
 
@@ -12,6 +12,25 @@ const SOURCES: ListingSource[] = ['yad2', 'madlan', 'facebook']
 export function FilterPanel({ filters, onChange }: FilterPanelProps) {
   const set = (partial: Partial<SearchFilters>) => onChange({ ...filters, ...partial, page: 1 })
 
+  // Local draft state for text inputs — debounce before firing onChange
+  const [cityDraft, setCityDraft] = useState(filters.city ?? '')
+  const [neighborhoodDraft, setNeighborhoodDraft] = useState(filters.neighborhood ?? '')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Sync drafts when filters are reset externally (e.g. "clear filters" button)
+  useEffect(() => { setCityDraft(filters.city ?? '') }, [filters.city])
+  useEffect(() => { setNeighborhoodDraft(filters.neighborhood ?? '') }, [filters.neighborhood])
+
+  const debouncedSet = (partial: Partial<SearchFilters>) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => set(partial), 350)
+  }
+
+  const priceInvalid =
+    filters.price_min != null &&
+    filters.price_max != null &&
+    filters.price_min > filters.price_max
+
   return (
     <div style={{ padding: '12px', background: '#fff', borderRadius: 8, minWidth: 240 }}>
       <h3 style={{ marginBottom: 12, fontSize: 14, fontWeight: 600 }}>סינון</h3>
@@ -20,20 +39,28 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
       <input
         style={inputStyle}
         placeholder="תל אביב, חיפה..."
-        value={filters.city ?? ''}
-        onChange={(e) => set({ city: e.target.value || undefined })}
+        value={cityDraft}
+        onChange={(e) => {
+          const val = e.target.value
+          setCityDraft(val)
+          debouncedSet({ city: val || undefined })
+        }}
       />
 
       <label style={labelStyle}>שכונה</label>
       <input
         style={inputStyle}
         placeholder="שם שכונה"
-        value={filters.neighborhood ?? ''}
-        onChange={(e) => set({ neighborhood: e.target.value || undefined })}
+        value={neighborhoodDraft}
+        onChange={(e) => {
+          const val = e.target.value
+          setNeighborhoodDraft(val)
+          debouncedSet({ neighborhood: val || undefined })
+        }}
       />
 
       <label style={labelStyle}>מחיר (₪)</label>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: priceInvalid ? 2 : 8 }}>
         <input
           style={{ ...inputStyle, marginBottom: 0 }}
           type="number"
@@ -49,6 +76,9 @@ export function FilterPanel({ filters, onChange }: FilterPanelProps) {
           onChange={(e) => set({ price_max: e.target.value ? Number(e.target.value) : undefined })}
         />
       </div>
+      {priceInvalid && (
+        <div style={{ fontSize: 11, color: '#ef4444', marginBottom: 6 }}>מינ׳ גדול ממקס׳</div>
+      )}
 
       <label style={labelStyle}>חדרים</label>
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>

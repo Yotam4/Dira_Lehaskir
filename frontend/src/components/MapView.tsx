@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type MutableRefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 import Map, { Marker, NavigationControl, useControl } from 'react-map-gl'
 import type { MapRef } from 'react-map-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
@@ -60,6 +60,19 @@ export function MapView({
 }: MapViewProps) {
   const mapRef = useRef<MapRef>(null)
   const [radiusMode, setRadiusMode] = useState(false)
+
+  // Auto-fit map to listing markers whenever the result set changes
+  useEffect(() => {
+    if (!mapRef.current || listings.length === 0) return
+    const withCoords = listings.filter((l) => l.lat != null && l.lng != null)
+    if (withCoords.length === 0) return
+    const lngs = withCoords.map((l) => l.lng as number)
+    const lats = withCoords.map((l) => l.lat as number)
+    mapRef.current.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 60, maxZoom: 14, duration: 600 },
+    )
+  }, [listings])
 
   const handleMapClick = useCallback(
     (e: mapboxgl.MapMouseEvent) => {

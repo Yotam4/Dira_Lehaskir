@@ -71,11 +71,20 @@ def _city_mentioned(text: str, city: str) -> bool:
 
     # Common Hebrew city aliases
     aliases: dict[str, list[str]] = {
-        "תל אביב": ["ת\"א", "ת.א", "תל-אביב", "tel aviv"],
-        "תל אביב יפו": ["ת\"א", "ת.א", "תל-אביב", "tel aviv"],
-        "ירושלים": ["י-ם", "ירושלם", "jerusalem"],
-        "חיפה": ["haifa"],
-        "באר שבע": ["ב\"ש", "ב.ש", "beer sheva"],
+        "תל אביב": ["ת\"א", "ת.א", "תל-אביב", "tel aviv", "tlv"],
+        "תל אביב יפו": ["ת\"א", "ת.א", "תל-אביב", "tel aviv", "tlv"],
+        "ירושלים": ["י-ם", "ירושלם", "jerusalem", "jlm"],
+        "חיפה": ["haifa", "חיפא"],
+        "באר שבע": ["ב\"ש", "ב.ש", "beer sheva", "beersheba"],
+        "רמת גן": ["ר\"ג", "ר.ג", "ramat gan"],
+        "גבעתיים": ["givatayim"],
+        "הרצליה": ["herzliya"],
+        "פתח תקווה": ["פ\"ת", "פ.ת", "petah tikva"],
+        "ראשון לציון": ["ראשל\"צ", "rishon lezion"],
+        "נתניה": ["netanya"],
+        "אשדוד": ["ashdod"],
+        "חולון": ["holon"],
+        "בת ים": ["bat yam"],
     }
     for alt in aliases.get(city, []):
         if alt.lower() in text_lower:
@@ -166,11 +175,15 @@ class FacebookCrawler(BaseCrawler):
             if filters.rooms_max and rooms > filters.rooms_max:
                 return None
 
-        # Images
+        # Images — facebook-scraper returns either a list of strings or dicts with "src"
         images: list[str] = []
         raw_images = post.get("images") or []
         if isinstance(raw_images, list):
-            images = [img for img in raw_images if isinstance(img, str)]
+            for img in raw_images:
+                if isinstance(img, str):
+                    images.append(img)
+                elif isinstance(img, dict) and img.get("src"):
+                    images.append(img["src"])
 
         # Source URL
         post_url: str | None = post.get("post_url") or post.get("link")

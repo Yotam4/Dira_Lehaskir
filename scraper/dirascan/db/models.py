@@ -10,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    ForeignKey,
     Integer,
     Numeric,
     SmallInteger,
@@ -48,6 +49,12 @@ class Listing(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     scraped_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
+    __table_args__ = (
+        CheckConstraint("price IS NULL OR price > 0", name="ck_listings_price_positive"),
+        CheckConstraint("rooms IS NULL OR rooms > 0", name="ck_listings_rooms_positive"),
+        CheckConstraint("sqm IS NULL OR sqm > 0", name="ck_listings_sqm_positive"),
+    )
+
     @property
     def lat(self) -> float | None:
         if self.location is None:
@@ -73,7 +80,7 @@ class ListingSource(Base):
     __tablename__ = "listing_sources"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    listing_id = Column(PG_UUID(as_uuid=True), nullable=False)
+    listing_id = Column(PG_UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False)
     source = Column(String(20), nullable=False)
     source_id = Column(Text, nullable=False)
     original_url = Column(Text)

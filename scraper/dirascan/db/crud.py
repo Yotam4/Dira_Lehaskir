@@ -82,7 +82,11 @@ def upsert_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
 
     if existing_source:
         listing = db.get(Listing, existing_source.listing_id)
-        if listing:
+        if listing is None:
+            # Orphaned source row (listing was deleted) — clean up and re-insert
+            db.delete(existing_source)
+            db.flush()
+        else:
             listing.title = raw.title or listing.title
             listing.description = raw.description or listing.description
             listing.price = raw.price if raw.price is not None else listing.price

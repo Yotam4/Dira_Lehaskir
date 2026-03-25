@@ -67,7 +67,18 @@ async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> Non
     db = SessionLocal()
     total_found = 0
     total_new = 0
-    error_msg = None
+    errors: list[str] = []
+
+    logger.info(
+        "Scrape run %s starting: sources=%s city=%r price=%s-%s rooms=%s-%s",
+        run_id,
+        sources,
+        filters.city,
+        filters.price_min,
+        filters.price_max,
+        filters.rooms_min,
+        filters.rooms_max,
+    )
 
     try:
         run = db.get(ScrapeRun, run_id)
@@ -88,14 +99,14 @@ async def _run_scrape(run_id, sources: list[str], filters: SearchFilters) -> Non
                 logger.warning("Crawler %s not yet implemented — skipping", source)
             except Exception as exc:
                 logger.error("Crawler %s error: %s", source, exc, exc_info=True)
-                error_msg = str(exc)
+                errors.append(f"{source}: {exc}")
 
         complete_scrape_run(
             db,
             run,
             listings_found=total_found,
             listings_new=total_new,
-            error_message=error_msg,
+            error_message="; ".join(errors) if errors else None,
         )
         db.commit()
     except Exception as exc:

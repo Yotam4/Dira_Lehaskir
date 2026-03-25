@@ -69,9 +69,9 @@ def get_listings(
         )
 
     if city:
-        q = q.filter(Listing.city.ilike(f"%{city}%"))
+        q = q.filter(Listing.city.ilike(f"%{city.strip()}%"))
     if neighborhood:
-        q = q.filter(Listing.neighborhood.ilike(f"%{neighborhood}%"))
+        q = q.filter(Listing.neighborhood.ilike(f"%{neighborhood.strip()}%"))
     if source:
         q = q.filter(Listing.source == source)
     if price_min is not None:

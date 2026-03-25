@@ -3,6 +3,7 @@ import type { ListingsPage, SearchFilters } from '../types/listing'
 
 const api = axios.create({
   baseURL: '/api',
+  timeout: 15_000,
 })
 
 export async function fetchListings(filters: SearchFilters): Promise<ListingsPage> {
