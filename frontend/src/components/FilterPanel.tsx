@@ -82,7 +82,6 @@ export function FilterPanel({ filters, onChange, favoritesOnly, onToggleFavorite
         value={filters.neighborhood ?? ''}
         options={neighborhoods}
         disabled={!hasCity}
-        allowFreeText
         placeholder={
           !hasCity ? 'בחר עיר תחילה' : nbhLoading ? 'טוען שכונות...' : 'בחר שכונה...'
         }

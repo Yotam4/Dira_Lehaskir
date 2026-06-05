@@ -99,6 +99,9 @@ class ScrapeRun(Base):
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     triggered_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    # Set when a worker claims the run (status -> 'running'). Distinct from
+    # triggered_at (enqueue time) so stale-run recovery measures actual runtime.
+    started_at = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
     status = Column(
         String(20),

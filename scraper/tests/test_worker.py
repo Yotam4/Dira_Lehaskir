@@ -167,3 +167,32 @@ class TestQueueClaim:
         session.refresh(stale)
         assert stale.status == "failed"
         assert "stale" in (stale.error_message or "").lower()
+
+    def test_claim_stamps_started_at(self, session):
+        from dirascan.worker import claim_next_job
+        from dirascan.db.models import ScrapeRun
+
+        session.query(ScrapeRun).filter_by(status="queued").delete()
+        session.commit()
+        self._enqueue(session)
+
+        claimed = claim_next_job(session)
+        assert claimed is not None
+        assert claimed.started_at is not None
+
+    def test_recovery_uses_start_time_not_enqueue_time(self, session):
+        """A job that waited a long time in the queue then was just claimed must
+        NOT be recovered as stale — recovery measures runtime, not queue wait."""
+        from dirascan.worker import _recover_stale_runs
+        from dirascan.db.models import ScrapeRun
+
+        run = self._enqueue(session)
+        # Enqueued 2h ago, but claimed just now (started_at = now).
+        run.triggered_at = datetime.now(timezone.utc) - timedelta(hours=2)
+        run.status = "running"
+        run.started_at = datetime.now(timezone.utc)
+        session.commit()
+
+        _recover_stale_runs(session)
+        session.refresh(run)
+        assert run.status == "running"  # still healthy, not failed

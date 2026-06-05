@@ -35,7 +35,7 @@ def claim_next_job(db: Session) -> ScrapeRun | None:
         text(
             """
             UPDATE scrape_runs
-            SET status = 'running'
+            SET status = 'running', started_at = NOW()
             WHERE id = (
                 SELECT id FROM scrape_runs
                 WHERE status = 'queued'
@@ -63,7 +63,7 @@ def _recover_stale_runs(db: Session) -> None:
                 completed_at = NOW(),
                 error_message = 'Worker restart: recovered from stale running state'
             WHERE status = 'running'
-              AND triggered_at < NOW() - make_interval(mins => :mins)
+              AND COALESCE(started_at, triggered_at) < NOW() - make_interval(mins => :mins)
             """
         ),
         {"mins": STALE_RUNNING_MINUTES},
