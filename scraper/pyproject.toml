@@ -33,6 +33,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "live: hits real Yad2/Madlan/Facebook over the network (opt-in; pass --run-live or set RUN_LIVE_CRAWLER_TESTS=1)",
+]
 
 [project.scripts]
 dirascan = "dirascan.cli:main"
