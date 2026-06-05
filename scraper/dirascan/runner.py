@@ -97,6 +97,10 @@ async def run_scrape_job(
                 db.commit()
                 logger.info("Scrape %s: %s found %d listings", run_id, source, len(listings))
             except Exception as exc:
+                # Roll back so an aborted transaction (e.g. a flush that hit a
+                # CHECK/constraint on one bad listing) doesn't poison the session
+                # and take down every subsequent source's writes.
+                db.rollback()
                 logger.error("Crawler %s error: %s", source, exc, exc_info=True)
                 errors.append(f"{source}: {exc}")
 

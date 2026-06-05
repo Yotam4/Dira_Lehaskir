@@ -95,6 +95,10 @@ export function MapView({
   // Auto-fit map to listing markers whenever the result set changes
   useEffect(() => {
     if (!mapRef.current || listings.length === 0) return
+    // Only auto-fit on a fresh result set (page 1). Load-more appends to the
+    // same view, so re-fitting there would yank the camera and fight any manual
+    // pan/zoom the user just did.
+    if ((filters.page ?? 1) > 1) return
     const withCoords = listings.filter((l) => l.lat != null && l.lng != null)
     if (withCoords.length === 0) return
     const lngs = withCoords.map((l) => l.lng as number)
@@ -103,6 +107,7 @@ export function MapView({
       [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
       { padding: 60, maxZoom: 14, duration: 600 },
     )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listings])
 
   const geojson = useMemo<FeatureCollection>(() => ({
@@ -155,7 +160,10 @@ export function MapView({
   const startRadius = () => {
     drawRef.current?.deleteAll()
     setMode('radius')
-    onFilterChange({ polygon_geojson: undefined })
+    // Seed a default radius so the size selector appears immediately and the
+    // user can pick a size before placing the centre. radius_m without lat/lng
+    // is ignored by the listings query, so this creates no premature filter.
+    onFilterChange({ polygon_geojson: undefined, radius_m: filters.radius_m ?? 1000 })
   }
 
   const stopMode = () => setMode('browse')
@@ -171,9 +179,11 @@ export function MapView({
           const clusterId = feature.properties?.cluster_id as number
           const mapInstance = mapRef.current?.getMap() as any
           const source = mapInstance?.getSource('listings')
-          source?.getClusterExpansionZoom(clusterId).then((zoom: number) => {
-            mapRef.current?.easeTo({ center: feature.geometry.coordinates as [number, number], zoom })
-          })
+          source?.getClusterExpansionZoom(clusterId)
+            .then((zoom: number) => {
+              mapRef.current?.easeTo({ center: feature.geometry.coordinates as [number, number], zoom })
+            })
+            .catch(() => {})
         } else if (feature.layer.id === 'unclustered-point') {
           onSelectListing(feature.properties?.id as string)
         }

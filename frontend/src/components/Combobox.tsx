@@ -46,6 +46,10 @@ export function Combobox({
 
   const q = query.trim().toLowerCase()
   const filtered = q ? options.filter((o) => o.toLowerCase().includes(q)) : options
+  // `active` isn't re-clamped when `filtered` shrinks without a keystroke (e.g.
+  // options load in / the parent re-renders with fewer items), so derive a safe
+  // index for highlighting and committing.
+  const activeIdx = filtered.length ? Math.min(active, filtered.length - 1) : 0
 
   const commit = (val: string) => {
     onSelect(val)
@@ -66,7 +70,7 @@ export function Combobox({
       setActive((a) => Math.max(a - 1, 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (filtered[active]) commit(filtered[active])
+      if (filtered[activeIdx]) commit(filtered[activeIdx])
       else if (allowFreeText) commit(query)
     } else if (e.key === 'Escape') {
       setOpen(false)
@@ -112,13 +116,13 @@ export function Combobox({
               <li
                 key={opt}
                 role="option"
-                aria-selected={i === active}
+                aria-selected={i === activeIdx}
                 onMouseDown={(e) => {
                   e.preventDefault()
                   commit(opt)
                 }}
                 onMouseEnter={() => setActive(i)}
-                style={{ ...optionStyle, background: i === active ? '#eff6ff' : '#fff' }}
+                style={{ ...optionStyle, background: i === activeIdx ? '#eff6ff' : '#fff' }}
               >
                 {opt}
               </li>

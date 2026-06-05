@@ -48,4 +48,22 @@ describe('Combobox', () => {
     render(<Combobox value="" options={CITIES} onSelect={() => {}} placeholder="עיר" disabled />)
     expect(screen.getByPlaceholderText('עיר')).toBeDisabled()
   })
+
+  it('commits an in-range option when the list shrinks after the active index was set', () => {
+    const onSelect = vi.fn()
+    const { rerender } = render(
+      <Combobox value="" options={CITIES} onSelect={onSelect} placeholder="עיר" />,
+    )
+    const input = screen.getByPlaceholderText('עיר')
+    fireEvent.focus(input)
+    fireEvent.keyDown(input, { key: 'ArrowDown' }) // active -> 1
+    fireEvent.keyDown(input, { key: 'ArrowDown' }) // active -> 2 (last of 3)
+
+    // Options shrink to a single item without a keystroke resetting `active`.
+    rerender(<Combobox value="" options={['חיפה']} onSelect={onSelect} placeholder="עיר" />)
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    // Must commit the valid in-range option, never undefined.
+    expect(onSelect).toHaveBeenCalledWith('חיפה')
+  })
 })

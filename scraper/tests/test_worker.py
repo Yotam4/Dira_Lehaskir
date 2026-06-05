@@ -37,6 +37,15 @@ class EchoCrawler(BaseCrawler):
         ]
 
 
+class BoomCrawler(BaseCrawler):
+    """Returns one listing whose persistence will be made to fail in a test."""
+
+    source_name = "boom"
+
+    async def scrape(self, filters: SearchFilters) -> list[RawListing]:
+        return [RawListing(source="boom", source_id="boom-1", title="boom", city="x", price=1)]
+
+
 # ---------------------------------------------------------------------------
 # filters round-trip
 # ---------------------------------------------------------------------------
@@ -102,6 +111,33 @@ class TestRunScrapeJob:
         kwargs = complete.call_args.kwargs
         assert "does-not-exist" in (kwargs["error_message"] or "")
         assert kwargs["listings_found"] == 0
+
+    async def test_failing_source_rolls_back_and_next_source_still_persists(self, monkeypatch):
+        """A persistence failure in one source must roll back (so the session
+        isn't poisoned) and must not prevent later sources from being saved."""
+        run_id = uuid.uuid4()
+        db = MagicMock()
+        db.get.return_value = MagicMock(status="running")
+
+        monkeypatch.setitem(runner.CRAWLERS, "boom", BoomCrawler)
+        monkeypatch.setitem(runner.CRAWLERS, "echo", EchoCrawler)
+
+        def fake_upsert(_db, raw):
+            if raw.source == "boom":
+                raise ValueError("bad listing")  # simulate a flush/constraint failure
+            return (MagicMock(), True)
+
+        monkeypatch.setattr(runner, "upsert_listing", fake_upsert)
+        complete = MagicMock()
+        monkeypatch.setattr(runner, "complete_scrape_run", complete)
+
+        await runner.run_scrape_job(run_id, ["boom", "echo"], SearchFilters(), db)
+
+        db.rollback.assert_called_once()  # rolled back the poisoned 'boom' tx
+        kwargs = complete.call_args.kwargs
+        assert kwargs["listings_found"] == 1  # echo still persisted
+        assert kwargs["listings_new"] == 1
+        assert "boom" in (kwargs["error_message"] or "")
 
 
 # ---------------------------------------------------------------------------

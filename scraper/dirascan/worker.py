@@ -80,6 +80,10 @@ async def run_worker(poll_interval: float = 5.0) -> None:
     recovery_db = SessionLocal()
     try:
         _recover_stale_runs(recovery_db)
+    except Exception as exc:
+        # A transient DB hiccup at boot shouldn't crash the worker before it
+        # reaches the retry-tolerant poll loop below.
+        logger.warning("Startup stale-run recovery failed (continuing): %s", exc)
     finally:
         recovery_db.close()
 
