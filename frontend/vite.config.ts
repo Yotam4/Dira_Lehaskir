@@ -3,6 +3,17 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the heavy map libs into their own chunk so the main bundle stays
+        // small and the (rarely-changing) map vendor code caches independently.
+        manualChunks: {
+          mapbox: ['mapbox-gl', 'react-map-gl', '@mapbox/mapbox-gl-draw'],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

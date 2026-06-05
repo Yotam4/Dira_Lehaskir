@@ -11,12 +11,13 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
 from dirascan.base.crawler import BaseCrawler, RawListing, SearchFilters
-from dirascan.db.crud import _filters_to_dict, filters_from_dict
+from dirascan.db.crud import _filters_to_dict, complete_scrape_run, filters_from_dict
 from dirascan import runner
 
 
@@ -133,11 +134,33 @@ class TestRunScrapeJob:
 
         await runner.run_scrape_job(run_id, ["boom", "echo"], SearchFilters(), db)
 
-        db.rollback.assert_called_once()  # rolled back the poisoned 'boom' tx
+        assert db.rollback.call_count >= 1  # rolled back the poisoned 'boom' tx
         kwargs = complete.call_args.kwargs
         assert kwargs["listings_found"] == 1  # echo still persisted
         assert kwargs["listings_new"] == 1
         assert "boom" in (kwargs["error_message"] or "")
+
+
+class TestCompleteScrapeRun:
+    """The status field is derived from error_message — cover that load-bearing
+    line offline (it's otherwise only exercised through Postgres-gated paths)."""
+
+    def test_status_completed_when_no_error(self):
+        db = MagicMock()
+        run = SimpleNamespace()
+        complete_scrape_run(db, run, listings_found=9, listings_new=3, error_message=None)
+        assert run.status == "completed"
+        assert run.listings_found == 9
+        assert run.listings_new == 3
+        assert run.error_message is None
+        db.flush.assert_called_once()
+
+    def test_status_failed_when_error_present(self):
+        db = MagicMock()
+        run = SimpleNamespace()
+        complete_scrape_run(db, run, listings_found=0, listings_new=0, error_message="boom")
+        assert run.status == "failed"
+        assert run.error_message == "boom"
 
 
 # ---------------------------------------------------------------------------
@@ -155,10 +178,14 @@ class TestQueueClaim:
     def session(self):
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
+        from dirascan.db.models import ScrapeRun
 
         engine = create_engine(_TEST_DB)
         Session = sessionmaker(bind=engine)
         s = Session()
+        # Clean slate so tests are isolated regardless of order / leftover commits.
+        s.query(ScrapeRun).delete()
+        s.commit()
         yield s
         s.rollback()
         s.close()

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import Map, { NavigationControl, Source, Layer, useControl } from 'react-map-gl'
 import type { MapRef, LayerProps, IControl } from 'react-map-gl'
-import type { Feature, FeatureCollection, Polygon } from 'geojson'
+import type { FeatureCollection } from 'geojson'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import type { Listing, SearchFilters } from '../types/listing'
 import { SOURCE_COLORS } from '../types/listing'
+import { circlePolygon } from '../utils/circle'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string
 
@@ -54,19 +55,6 @@ function DrawControl({
     { position: 'top-left' },
   )
   return null
-}
-
-// Approximate a circle as a GeoJSON polygon for the radius overlay.
-function circlePolygon(lng: number, lat: number, radiusM: number, points = 64): Feature<Polygon> {
-  const coords: [number, number][] = []
-  const earth = 6378137
-  const dLat = (radiusM / earth) * (180 / Math.PI)
-  const dLng = dLat / Math.cos((lat * Math.PI) / 180)
-  for (let i = 0; i <= points; i++) {
-    const theta = (i / points) * 2 * Math.PI
-    coords.push([lng + dLng * Math.cos(theta), lat + dLat * Math.sin(theta)])
-  }
-  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coords] } }
 }
 
 interface MapViewProps {

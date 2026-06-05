@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ScrapeButton } from './ScrapeButton'
 
 vi.mock('../hooks/useGeo', () => ({
@@ -11,11 +11,15 @@ vi.mock('../api/client', () => ({
   fetchScrapeRun: vi.fn(),
 }))
 
-import { triggerScrape } from '../api/client'
+import { triggerScrape, fetchScrapeRun } from '../api/client'
 
 describe('ScrapeButton', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('sends the selected sources and city (not a hardcoded list)', async () => {
@@ -49,5 +53,40 @@ describe('ScrapeButton', () => {
     fireEvent.click(screen.getByLabelText(/מדלן/))
     fireEvent.click(screen.getByText('סרוק'))
     expect(triggerScrape).not.toHaveBeenCalled()
+  })
+
+  it('polls until completed, shows the result, and calls onComplete', async () => {
+    vi.useFakeTimers()
+    ;(triggerScrape as any).mockResolvedValue({ run_id: 'r1', status: 'queued', triggered_at: 'now' })
+    ;(fetchScrapeRun as any)
+      .mockResolvedValueOnce({ status: 'running' })
+      .mockResolvedValueOnce({ status: 'completed', listings_new: 3, listings_found: 9 })
+    const onComplete = vi.fn()
+
+    render(<ScrapeButton filters={{ city: 'תל אביב' }} onComplete={onComplete} />)
+    fireEvent.click(screen.getByText('סרוק עכשיו'))
+    fireEvent.click(screen.getByText('סרוק'))
+
+    await vi.advanceTimersByTimeAsync(0) // let triggerScrape resolve + start polling
+    await vi.advanceTimersByTimeAsync(3000) // poll 1 -> running
+    await vi.advanceTimersByTimeAsync(3000) // poll 2 -> completed
+
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/הושלם/)).toBeInTheDocument()
+  })
+
+  it('surfaces a failed run with its error_message', async () => {
+    vi.useFakeTimers()
+    ;(triggerScrape as any).mockResolvedValue({ run_id: 'r1', status: 'queued', triggered_at: 'now' })
+    ;(fetchScrapeRun as any).mockResolvedValueOnce({ status: 'failed', error_message: 'הסריקה קרסה' })
+
+    render(<ScrapeButton filters={{ city: 'תל אביב' }} />)
+    fireEvent.click(screen.getByText('סרוק עכשיו'))
+    fireEvent.click(screen.getByText('סרוק'))
+
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(3000)
+
+    expect(screen.getByText(/הסריקה קרסה/)).toBeInTheDocument()
   })
 })

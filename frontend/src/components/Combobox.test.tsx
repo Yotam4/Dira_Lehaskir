@@ -49,6 +49,25 @@ describe('Combobox', () => {
     expect(screen.getByPlaceholderText('עיר')).toBeDisabled()
   })
 
+  it('with allowFreeText, Enter commits the typed value when nothing matches', () => {
+    const onSelect = vi.fn()
+    render(<Combobox value="" options={CITIES} onSelect={onSelect} placeholder="עיר" allowFreeText />)
+    const input = screen.getByPlaceholderText('עיר')
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'רמת גן' } }) // not in options
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onSelect).toHaveBeenLastCalledWith('רמת גן')
+  })
+
+  it('Escape closes the dropdown', () => {
+    render(<Combobox value="" options={CITIES} onSelect={() => {}} placeholder="עיר" />)
+    const input = screen.getByPlaceholderText('עיר')
+    fireEvent.focus(input)
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
   it('commits an in-range option when the list shrinks after the active index was set', () => {
     const onSelect = vi.fn()
     const { rerender } = render(
