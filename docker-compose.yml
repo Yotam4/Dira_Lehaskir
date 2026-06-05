@@ -18,6 +18,22 @@ services:
       timeout: 5s
       retries: 10
 
+  # One-shot: applies Alembic migrations, then exits. The api and scraper
+  # services wait for this to complete successfully before starting.
+  migrate:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dirascan}:${POSTGRES_PASSWORD:-dirascan_dev}@db:5432/${POSTGRES_DB:-dirascan}
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: dirascan migrate
+    restart: "no"
+
   api:
     build:
       context: ./api
@@ -36,6 +52,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 10s
@@ -44,10 +62,13 @@ services:
       start_period: 10s
     command: uvicorn main:app --host 0.0.0.0 --port 8000
 
+  # Persistent worker: polls scrape_runs for queued jobs and runs the crawlers
+  # (Playwright/Chromium live here, not in the api container).
   scraper:
     build:
       context: ./scraper
       dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-dirascan}:${POSTGRES_PASSWORD:-dirascan_dev}@db:5432/${POSTGRES_DB:-dirascan}
       PLAYWRIGHT_HEADLESS: ${PLAYWRIGHT_HEADLESS:-true}
@@ -62,12 +83,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     mem_limit: 2g
     cpus: "1.5"
-    # No default command — run on-demand:
+    # On-demand CLI still works:
     #   docker compose run --rm scraper dirascan scrape --city "תל אביב" --source yad2
-    profiles:
-      - scraper
+    command: dirascan worker
 
   frontend:
     build:
@@ -79,7 +101,8 @@ services:
     volumes:
       - ./frontend/src:/app/src
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      # Inside the Docker network the API is reachable by its service name.
+      VITE_API_BASE_URL: http://api:8000
       VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
 
 volumes:

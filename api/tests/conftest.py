@@ -64,7 +64,7 @@ def _make_mock_listing(**kwargs):
 def _make_mock_scrape_run(**kwargs):
     defaults = dict(
         id=uuid.uuid4(),
-        status="running",
+        status="queued",
         triggered_at=datetime.utcnow(),
         completed_at=None,
         listings_found=None,

@@ -1,10 +1,11 @@
 """
-CLI entry point for on-demand scraping.
+CLI entry point for on-demand scraping and the background worker.
 
 Usage:
     docker compose run --rm scraper dirascan scrape --city "תל אביב" --source yad2
     docker compose run --rm scraper dirascan scrape --city "חיפה" --source all
     docker compose run --rm scraper dirascan migrate
+    dirascan worker        # persistent worker (started by docker-compose)
 """
 
 import asyncio
@@ -14,17 +15,9 @@ from pathlib import Path
 import click
 
 from dirascan.base.crawler import SearchFilters
-from dirascan.crawlers.yad2 import Yad2Crawler
-from dirascan.crawlers.madlan import MadlanCrawler
-from dirascan.crawlers.facebook import FacebookCrawler
+from dirascan.db.crud import create_scrape_run
 from dirascan.db.session import SessionLocal
-from dirascan.db.crud import create_scrape_run, complete_scrape_run, upsert_listing
-
-CRAWLERS = {
-    "yad2": Yad2Crawler,
-    "madlan": MadlanCrawler,
-    "facebook": FacebookCrawler,
-}
+from dirascan.runner import CRAWLERS, run_scrape_job
 
 
 @click.group()
@@ -46,7 +39,7 @@ def main():
 @click.option("--rooms-max", default=None, type=float)
 @click.option("--max-results", default=None, type=int)
 def scrape(city, source, price_min, price_max, rooms_min, rooms_max, max_results):
-    """Trigger an on-demand scrape run."""
+    """Trigger an on-demand scrape run synchronously (bypasses the queue)."""
     filters = SearchFilters(
         city=city,
         price_min=price_min,
@@ -62,41 +55,17 @@ def scrape(city, source, price_min, price_max, rooms_min, rooms_max, max_results
         db = SessionLocal()
         try:
             scrape_run = create_scrape_run(db, sources=sources, filters=filters)
+            # CLI runs immediately in-process — skip the 'queued' phase.
+            scrape_run.status = "running"
             db.commit()
-
-            total_found = 0
-            total_new = 0
-            error_occurred = False
-
-            for src in sources:
-                crawler_cls = CRAWLERS[src]
-                click.echo(f"Scraping {src}...")
-                try:
-                    async with crawler_cls() as crawler:
-                        listings = await crawler.scrape(filters)
-                    for raw in listings:
-                        raw.crawl_run_id = scrape_run.id
-                        _, is_new = upsert_listing(db, raw)
-                        total_found += 1
-                        if is_new:
-                            total_new += 1
-                    db.commit()
-                    click.echo(f"  {src}: {len(listings)} listings")
-                except NotImplementedError:
-                    click.echo(f"  {src}: not yet implemented — skipping")
-                except Exception as exc:
-                    click.echo(f"  {src}: ERROR — {exc}", err=True)
-                    error_occurred = True
-
-            complete_scrape_run(
-                db,
-                scrape_run,
-                listings_found=total_found,
-                listings_new=total_new,
+            await run_scrape_job(scrape_run.id, sources, filters, db)
+            db.refresh(scrape_run)
+            click.echo(
+                f"\nDone. Found {scrape_run.listings_found or 0}, "
+                f"new {scrape_run.listings_new or 0}. Status: {scrape_run.status}."
             )
-            db.commit()
-            click.echo(f"\nDone. Found {total_found}, new {total_new}.")
-            if error_occurred:
+            if scrape_run.status == "failed":
+                click.echo(f"Errors: {scrape_run.error_message}", err=True)
                 sys.exit(1)
         finally:
             db.close()
@@ -105,9 +74,19 @@ def scrape(city, source, price_min, price_max, rooms_min, rooms_max, max_results
 
 
 @main.command()
+@click.option("--poll-interval", default=5.0, type=float, help="Seconds between polls when idle")
+def worker(poll_interval):
+    """Persistent worker: polls scrape_runs for queued jobs and executes them."""
+    from dirascan.worker import run_worker
+
+    asyncio.run(run_worker(poll_interval=poll_interval))
+
+
+@main.command()
 def migrate():
     """Run Alembic migrations (alias for alembic upgrade head)."""
     import subprocess
+
     # In Docker, alembic.ini is at /app; in local dev it's in the scraper/ directory
     alembic_dir = "/app" if Path("/app/alembic.ini").exists() else str(Path(__file__).parent.parent)
     result = subprocess.run(["alembic", "upgrade", "head"], cwd=alembic_dir)

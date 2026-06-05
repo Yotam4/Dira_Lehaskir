@@ -6,7 +6,7 @@ sys.path.insert(0, "/scraper")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import listings, scrape
+from api.routers import geo, listings, scrape
 from settings import settings
 
 app = FastAPI(title="DiraScan API", version="0.1.0")
@@ -20,6 +20,7 @@ app.add_middleware(
 
 app.include_router(listings.router, prefix="/listings", tags=["listings"])
 app.include_router(scrape.router, prefix="/scrape", tags=["scrape"])
+app.include_router(geo.router, prefix="", tags=["geo"])
 
 
 @app.get("/health")

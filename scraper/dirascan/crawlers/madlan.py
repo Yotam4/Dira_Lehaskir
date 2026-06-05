@@ -8,51 +8,10 @@ from playwright.async_api import BrowserContext, async_playwright
 
 from dirascan import stealth as _stealth
 from dirascan.base.crawler import BaseCrawler, RawListing, SearchFilters
+from dirascan.cities import CITY_TO_MADLAN_SLUG as CITY_SLUGS
 from dirascan.settings import settings
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# City name -> Madlan URL slug  (Hebrew text used directly in the path)
-# ---------------------------------------------------------------------------
-
-CITY_SLUGS: dict[str, str] = {
-    "תל אביב": "תל-אביב-יפו",
-    "תל אביב יפו": "תל-אביב-יפו",
-    "ירושלים": "ירושלים",
-    "חיפה": "חיפה",
-    "ראשון לציון": "ראשון-לציון",
-    "פתח תקווה": "פתח-תקווה",
-    "אשדוד": "אשדוד",
-    "נתניה": "נתניה",
-    "באר שבע": "באר-שבע",
-    "בני ברק": "בני-ברק",
-    "חולון": "חולון",
-    "רמת גן": "רמת-גן",
-    "גבעתיים": "גבעתיים",
-    "הרצליה": "הרצליה",
-    "כפר סבא": "כפר-סבא",
-    "רחובות": "רחובות",
-    "אשקלון": "אשקלון",
-    "בת ים": "בת-ים",
-    "מודיעין": "מודיעין-מכבים-רעות",
-    "לוד": "לוד",
-    "רמלה": "רמלה",
-    "נס ציונה": "נס-ציונה",
-    "רעננה": "רעננה",
-    "הוד השרון": "הוד-השרון",
-    "רמת השרון": "רמת-השרון",
-    # English fallbacks
-    "tel aviv": "תל-אביב-יפו",
-    "jerusalem": "ירושלים",
-    "haifa": "חיפה",
-    "beer sheva": "באר-שבע",
-    "netanya": "נתניה",
-    "rishon lezion": "ראשון-לציון",
-    "petah tikva": "פתח-תקווה",
-    "ramat gan": "רמת-גן",
-    "herzliya": "הרצליה",
-}
 
 _MADLAN_API_FRAGMENT = "madlan.co.il/api"
 _MADLAN_BASE_URL = "https://www.madlan.co.il/for-rent"

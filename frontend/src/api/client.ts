@@ -40,7 +40,7 @@ export async function triggerScrape(payload: {
 
 export interface ScrapeRunStatus {
   run_id: string
-  status: 'running' | 'completed' | 'failed'
+  status: 'queued' | 'running' | 'completed' | 'failed'
   triggered_at: string
   completed_at: string | null
   listings_found: number | null

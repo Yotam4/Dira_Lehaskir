@@ -103,7 +103,7 @@ class ScrapeRun(Base):
     status = Column(
         String(20),
         nullable=False,
-        default="running",
+        default="queued",
     )
     sources = Column(ARRAY(Text), nullable=False)
     filters = Column(JSONB, nullable=False, default=dict)

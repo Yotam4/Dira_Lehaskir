@@ -8,72 +8,10 @@ from playwright.async_api import BrowserContext, async_playwright
 
 from dirascan import stealth as _stealth
 from dirascan.base.crawler import BaseCrawler, RawListing, SearchFilters
+from dirascan.cities import CITY_TO_YAD2_CODE as CITY_CODES
 from dirascan.settings import settings
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# City name -> Yad2 numeric city code
-# ---------------------------------------------------------------------------
-
-CITY_CODES: dict[str, str] = {
-    # Hebrew names
-    "תל אביב": "5000",
-    "תל אביב יפו": "5000",
-    "ירושלים": "3000",
-    "חיפה": "4000",
-    "ראשון לציון": "8300",
-    "פתח תקווה": "7900",
-    "אשדוד": "6400",
-    "נתניה": "7400",
-    "באר שבע": "9000",
-    "בני ברק": "7100",
-    "חולון": "6200",
-    "רמת גן": "5300",
-    "גבעתיים": "5200",
-    "הרצליה": "6600",
-    "כפר סבא": "7300",
-    "רחובות": "8400",
-    "אשקלון": "6300",
-    "בת ים": "6700",
-    "מודיעין": "7000",
-    "מודיעין מכבים רעות": "7000",
-    "לוד": "7600",
-    "רמלה": "8100",
-    "נס ציונה": "7500",
-    "רעננה": "8200",
-    "הוד השרון": "6900",
-    "רמת השרון": "8250",
-    "קריית גת": "9700",
-    "עפולה": "9500",
-    "כרמיאל": "9200",
-    # English transliterations
-    "tel aviv": "5000",
-    "jerusalem": "3000",
-    "haifa": "4000",
-    "rishon lezion": "8300",
-    "rishon le-zion": "8300",
-    "petah tikva": "7900",
-    "ashdod": "6400",
-    "netanya": "7400",
-    "beer sheva": "9000",
-    "beersheba": "9000",
-    "bnei brak": "7100",
-    "holon": "6200",
-    "ramat gan": "5300",
-    "givatayim": "5200",
-    "herzliya": "6600",
-    "kfar saba": "7300",
-    "rehovot": "8400",
-    "ashkelon": "6300",
-    "bat yam": "6700",
-    "modiin": "7000",
-    "lod": "7600",
-    "ramla": "8100",
-    "nes ziona": "7500",
-    "raanana": "8200",
-    "hod hasharon": "6900",
-}
 
 _YAD2_FEED_FRAGMENT = "gw.yad2.co.il/feed-search-legato"
 _YAD2_BASE_URL = "https://www.yad2.co.il/realestate/rent"
