@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
 import { Star } from 'lucide-react'
 import type { SearchFilters, ListingSource } from '../types/listing'
 import { SOURCE_COLORS, SOURCE_LABELS } from '../types/listing'
+import { Combobox } from './Combobox'
+import { useCities, useNeighborhoods } from '../hooks/useGeo'
 
 interface FilterPanelProps {
   filters: SearchFilters
@@ -21,28 +22,8 @@ const PRESETS: { label: string; partial: Partial<SearchFilters> }[] = [
 export function FilterPanel({ filters, onChange, favoritesOnly, onToggleFavoritesOnly }: FilterPanelProps) {
   const set = (partial: Partial<SearchFilters>) => onChange({ ...filters, ...partial, page: 1 })
 
-  // Local draft state for text inputs — debounce before firing onChange
-  const [cityDraft, setCityDraft] = useState(filters.city ?? '')
-  const [neighborhoodDraft, setNeighborhoodDraft] = useState(filters.neighborhood ?? '')
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Sync drafts when filters are reset externally (e.g. "clear filters" button)
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    setCityDraft(filters.city ?? '')
-  }, [filters.city])
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    setNeighborhoodDraft(filters.neighborhood ?? '')
-  }, [filters.neighborhood])
-
-  // Clear pending debounce on unmount
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current) }, [])
-
-  const debouncedSet = (partial: Partial<SearchFilters>) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => set(partial), 350)
-  }
+  const { data: cities = [] } = useCities()
+  const { data: neighborhoods = [], isFetching: nbhLoading } = useNeighborhoods(filters.city)
 
   const priceInvalid =
     filters.price_min != null &&
@@ -56,6 +37,8 @@ export function FilterPanel({ filters, onChange, favoritesOnly, onToggleFavorite
       : [...activeSources, s]
     set({ sources: next.length ? next : undefined })
   }
+
+  const hasCity = !!filters.city && filters.city.trim().length > 0
 
   return (
     <div style={{ padding: '12px', background: '#fff', borderRadius: 8, minWidth: 240 }}>
@@ -84,27 +67,27 @@ export function FilterPanel({ filters, onChange, favoritesOnly, onToggleFavorite
       </div>
 
       <label style={labelStyle}>עיר</label>
-      <input
-        style={inputStyle}
-        placeholder="תל אביב, חיפה..."
-        value={cityDraft}
-        onChange={(e) => {
-          const val = e.target.value
-          setCityDraft(val)
-          debouncedSet({ city: val || undefined })
-        }}
+      <Combobox
+        aria-label="עיר"
+        value={filters.city ?? ''}
+        options={cities}
+        placeholder="בחר עיר..."
+        emptyText="לא נמצאה עיר"
+        onSelect={(val) => set({ city: val || undefined, neighborhood: undefined })}
       />
 
       <label style={labelStyle}>שכונה</label>
-      <input
-        style={inputStyle}
-        placeholder="שם שכונה"
-        value={neighborhoodDraft}
-        onChange={(e) => {
-          const val = e.target.value
-          setNeighborhoodDraft(val)
-          debouncedSet({ neighborhood: val || undefined })
-        }}
+      <Combobox
+        aria-label="שכונה"
+        value={filters.neighborhood ?? ''}
+        options={neighborhoods}
+        disabled={!hasCity}
+        allowFreeText
+        placeholder={
+          !hasCity ? 'בחר עיר תחילה' : nbhLoading ? 'טוען שכונות...' : 'בחר שכונה...'
+        }
+        emptyText="אין שכונות ידועות לעיר זו"
+        onSelect={(val) => set({ neighborhood: val || undefined })}
       />
 
       <label style={labelStyle}>מחיר (₪)</label>
@@ -194,10 +177,10 @@ export function FilterPanel({ filters, onChange, favoritesOnly, onToggleFavorite
       {(filters.lat || filters.polygon_geojson) && (
         <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
           {filters.polygon_geojson
-            ? 'חיפוש לפי פוליגון מצויר'
+            ? 'חיפוש לפי אזור מצויר'
             : `רדיוס ${filters.radius_m ?? 1000}מ׳ מהנקודה שנבחרה`}
           <button
-            style={{ marginRight: 8, fontSize: 11, color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}
+            style={{ marginInlineStart: 8, fontSize: 11, color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}
             onClick={() => set({ lat: undefined, lng: undefined, radius_m: undefined, polygon_geojson: undefined })}
           >
             נקה

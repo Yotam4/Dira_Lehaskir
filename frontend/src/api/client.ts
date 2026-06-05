@@ -30,6 +30,16 @@ export async function fetchListing(id: string) {
   return data
 }
 
+export async function fetchCities(): Promise<string[]> {
+  const { data } = await api.get<string[]>('/cities')
+  return data
+}
+
+export async function fetchNeighborhoods(city: string): Promise<string[]> {
+  const { data } = await api.get<string[]>('/neighborhoods', { params: { city } })
+  return data
+}
+
 export async function triggerScrape(payload: {
   sources: string[]
   filters: Omit<SearchFilters, 'page' | 'page_size' | 'sort_by' | 'order'>

@@ -69,11 +69,22 @@ export function ListingCard({ listing, selected, onClick, isFavorite, onToggleFa
 
       <div style={{ marginTop: 6, fontWeight: 600, fontSize: 14 }}>{listing.title}</div>
 
+      {listing.images.length > 0 && (
+        <img
+          src={listing.images[0]}
+          alt=""
+          loading="lazy"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+          style={{ marginTop: 6, width: '100%', height: 120, objectFit: 'cover', borderRadius: 6, display: 'block' }}
+        />
+      )}
+
       <div style={{ marginTop: 4, fontSize: 13, color: '#374151', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
         {listing.price != null && <span>₪{listing.price.toLocaleString()}</span>}
         {pricePerSqm != null && <span style={{ fontSize: 11, color: '#9ca3af' }}>₪{pricePerSqm}/מ"ר</span>}
         {listing.rooms != null && <span>{listing.rooms} חד׳</span>}
         {listing.sqm != null && <span>{listing.sqm} מ״ר</span>}
+        {listing.floor != null && <span style={{ fontSize: 12, color: '#6b7280' }}>קומה {listing.floor}</span>}
       </div>
 
       {(listing.neighborhood || listing.city) && (

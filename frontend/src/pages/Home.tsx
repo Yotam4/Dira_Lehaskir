@@ -25,6 +25,10 @@ function readFiltersFromUrl(): SearchFilters {
   if (sortBy) filters.sort_by = sortBy
   const order = params.get('order') as SearchFilters['order']
   if (order) filters.order = order
+  const lat = params.get('lat'); if (lat) filters.lat = Number(lat)
+  const lng = params.get('lng'); if (lng) filters.lng = Number(lng)
+  const radiusM = params.get('radius_m'); if (radiusM) filters.radius_m = Number(radiusM)
+  const poly = params.get('polygon_geojson'); if (poly) filters.polygon_geojson = poly
   return filters
 }
 
@@ -48,7 +52,7 @@ export function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
-  // Sync filters → URL on every change (skip spatial params — too verbose)
+  // Sync filters → URL on every change (spatial params included so they survive reload)
   useEffect(() => {
     const params = new URLSearchParams()
     if (filters.city) params.set('city', filters.city)
@@ -60,6 +64,10 @@ export function Home() {
     filters.sources?.forEach((s) => params.append('sources', s))
     if (filters.sort_by) params.set('sort_by', filters.sort_by)
     if (filters.order) params.set('order', filters.order)
+    if (filters.lat != null) params.set('lat', String(filters.lat))
+    if (filters.lng != null) params.set('lng', String(filters.lng))
+    if (filters.radius_m != null) params.set('radius_m', String(filters.radius_m))
+    if (filters.polygon_geojson) params.set('polygon_geojson', filters.polygon_geojson)
     window.history.replaceState(null, '', params.toString() ? `?${params}` : window.location.pathname)
   }, [filters])
 
@@ -125,10 +133,28 @@ export function Home() {
 
   const canLoadMore = !isFetching && data != null && accumulatedItems.length < data.total
 
+  const clearAll = () => {
+    setFilters({ page: 1, page_size: 20 })
+    setAccumulatedItems([])
+  }
+
+  // Active-filter chips (each removable)
+  const chips: { label: string; clear: () => void }[] = []
+  if (filters.city) chips.push({ label: filters.city, clear: () => handleFilterChange({ city: undefined, neighborhood: undefined }) })
+  if (filters.neighborhood) chips.push({ label: filters.neighborhood, clear: () => handleFilterChange({ neighborhood: undefined }) })
+  if (filters.price_min != null || filters.price_max != null)
+    chips.push({ label: `₪${filters.price_min ?? 0}–${filters.price_max ?? '∞'}`, clear: () => handleFilterChange({ price_min: undefined, price_max: undefined }) })
+  if (filters.rooms_min != null || filters.rooms_max != null)
+    chips.push({ label: `${filters.rooms_min ?? 0}–${filters.rooms_max ?? '∞'} חד׳`, clear: () => handleFilterChange({ rooms_min: undefined, rooms_max: undefined }) })
+  if (filters.polygon_geojson) chips.push({ label: 'אזור מצויר', clear: () => handleFilterChange({ polygon_geojson: undefined }) })
+  if (filters.lat != null) chips.push({ label: `רדיוס ${filters.radius_m ?? 1000}מ׳`, clear: () => handleFilterChange({ lat: undefined, lng: undefined, radius_m: undefined }) })
+
+  const showSkeleton = isFetching && (filters.page ?? 1) <= 1 && displayedItems.length === 0
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      {/* Left sidebar */}
-      <div style={{ width: 300, display: 'flex', flexDirection: 'column', background: '#f9fafb', borderLeft: '1px solid #e5e7eb', overflow: 'hidden' }}>
+    <div dir="rtl" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      {/* Sidebar (right in RTL) */}
+      <div style={{ width: 300, display: 'flex', flexDirection: 'column', background: '#f9fafb', borderInlineEnd: '1px solid #e5e7eb', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -168,14 +194,44 @@ export function Home() {
               <option value="rooms:asc">חדרים: מעט לרבה</option>
               <option value="sqm:asc">שטח: קטן לגדול</option>
             </select>
-            <div style={{ fontSize: 12, color: isError ? '#ef4444' : '#9ca3af' }}>
-              {isFetching
-                ? 'טוען...'
-                : isError
-                  ? 'שגיאה בטעינת הדירות'
-                  : `${data?.total ?? 0} תוצאות`}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 12, color: isError ? '#ef4444' : '#9ca3af' }}>
+                {isError ? 'שגיאה בטעינת הדירות' : `${data?.total ?? 0} תוצאות${isFetching ? ' · מעדכן…' : ''}`}
+              </div>
+              {chips.length > 0 && (
+                <button
+                  onClick={clearAll}
+                  style={{ fontSize: 11, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  נקה הכל
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Active-filter chips */}
+          {chips.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+              {chips.map((c) => (
+                <button
+                  key={c.label}
+                  onClick={c.clear}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 12, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#3730a3', fontSize: 11, cursor: 'pointer' }}
+                >
+                  {c.label} <span aria-hidden style={{ fontWeight: 700 }}>×</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Loading skeleton (first page) */}
+          {showSkeleton &&
+            [0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{ height: 78, borderRadius: 8, background: '#eef0f3', marginBottom: 8, animation: 'pulse 1.4s ease-in-out infinite' }}
+              />
+            ))}
 
           {!isFetching && displayedItems.length === 0 && (
             <div style={{ padding: '24px 8px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
