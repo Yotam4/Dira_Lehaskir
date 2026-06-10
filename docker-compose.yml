@@ -28,6 +28,10 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-dirascan}:${POSTGRES_PASSWORD:-dirascan_dev}@db:5432/${POSTGRES_DB:-dirascan}
     env_file:
       - .env
+    volumes:
+      # Run the CURRENT migrations from source (like api/scraper do), so a plain
+      # `docker compose up` after pulling new code applies them without a rebuild.
+      - ./scraper:/app
     depends_on:
       db:
         condition: service_healthy
