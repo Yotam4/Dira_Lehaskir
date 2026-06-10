@@ -82,14 +82,22 @@ Dira_Lehaskir/
 ### dirascan package path
 `api/main.py` does `sys.path.insert(0, "/scraper")` so Docker can find the `dirascan` package. In tests, `api/tests/conftest.py` patches the path to the local `../scraper` directory before imports. Never change this pattern without updating both.
 
-### Background scrape tasks
-`POST /scrape/trigger` uses FastAPI's `BackgroundTasks`. Pass the async function and its arguments directly — **never wrap with `asyncio.run()`** (FastAPI's event loop is already running):
-```python
-# CORRECT
-background_tasks.add_task(_run_scrape, run.id, request.sources, filters)
-# WRONG — crashes with RuntimeError
-background_tasks.add_task(asyncio.run, _run_scrape(...))
-```
+### Scraping is a queue + worker, NOT a background task
+The API must never run crawlers in-process: the crawlers import Playwright, which
+the API image doesn't install (doing so previously crashed the scrape router on
+import). Instead:
+- `POST /scrape/trigger` only **enqueues** a `ScrapeRun` row with `status='queued'`
+  (via `create_scrape_run`) and returns. It imports no crawlers and no Playwright.
+- The `scraper` service runs `dirascan worker` (`scraper/dirascan/worker.py`),
+  which claims queued rows atomically (`FOR UPDATE SKIP LOCKED`), runs the crawlers
+  through `dirascan/runner.py`, and records results. Postgres is the queue.
+- The frontend polls `GET /scrape/runs/{id}` until `completed`/`failed`.
+
+So: **never add crawler/Playwright imports to anything under `api/`**, and never
+run a scrape from a FastAPI `BackgroundTask`. `api/tests/test_import_isolation.py`
+guards this — it fails if importing the app pulls in `playwright`/`dirascan.crawlers`/
+`dirascan.runner`. The synchronous `dirascan scrape` CLI shares `runner.py` for
+one-off local runs.
 
 ### MapboxDraw instance
 `MapView.tsx` uses a `useRef` to capture the `MapboxDraw` instance at creation time. Event handlers then use `drawRef.current.getAll()`. Never try to access the draw instance via `map._drawControl` — that property does not exist.
@@ -135,13 +143,16 @@ npm run test:watch  # watch mode
 cp .env.example .env
 # Fill in VITE_MAPBOX_TOKEN and FACEBOOK_EMAIL/FACEBOOK_PASSWORD
 
-docker compose up -d db api frontend
+# Brings up db, runs migrations (the one-shot `migrate` service), then starts
+# the api, the scraper worker, and the frontend. Migrations run automatically —
+# api and scraper wait for `migrate` to finish before starting.
+docker compose up -d
 
-# Run migrations (first time only)
-docker compose run --rm scraper dirascan migrate
+# Scraping is automatic: the `scraper` service runs `dirascan worker`, polling
+# the queue for jobs enqueued by POST /scrape/trigger (the UI's "scrape" button).
 
-# On-demand scrape
-docker compose run --rm --profile scraper scraper dirascan scrape --city "תל אביב" --source yad2
+# Optional: run a one-off synchronous scrape (bypasses the queue/worker)
+docker compose run --rm scraper dirascan scrape --city "תל אביב" --source yad2
 ```
 
 ### Ports

@@ -33,7 +33,7 @@ def test_trigger_scrape_returns_run_id(client, mock_db):
     assert resp.status_code == 202
     data = resp.json()
     assert "run_id" in data
-    assert data["status"] == "running"
+    assert data["status"] == "queued"
     assert "triggered_at" in data
 
 

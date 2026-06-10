@@ -16,6 +16,11 @@ html, body, #root {
   to   { transform: rotate(360deg); }
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {

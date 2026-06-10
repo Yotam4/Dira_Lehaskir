@@ -30,7 +30,7 @@ def create_scrape_run(
         id=uuid.uuid4(),
         sources=sources,
         filters=_filters_to_dict(filters),
-        status="running",
+        status="queued",
     )
     db.add(run)
     db.flush()
@@ -94,6 +94,8 @@ def upsert_listing(db: Session, raw: RawListing) -> tuple[Listing, bool]:
             listing.sqm = raw.sqm if raw.sqm is not None else listing.sqm
             listing.floor = raw.floor if raw.floor is not None else listing.floor
             listing.phone = raw.phone if raw.phone is not None else listing.phone
+            listing.city = raw.city or listing.city
+            listing.neighborhood = raw.neighborhood or listing.neighborhood
             listing.location = location or listing.location
             listing.amenities = raw.amenities or listing.amenities
             listing.images = raw.images or listing.images
@@ -166,3 +168,21 @@ def _filters_to_dict(filters: SearchFilters) -> dict[str, Any]:
         "rooms_max": filters.rooms_max,
         "max_results": filters.max_results,
     }
+
+
+def filters_from_dict(d: dict[str, Any]) -> SearchFilters:
+    """Inverse of ``_filters_to_dict`` — rebuild SearchFilters from a stored row."""
+    d = d or {}
+    return SearchFilters(
+        city=d.get("city") or "",
+        neighborhoods=d.get("neighborhoods") or [],
+        lat=d.get("lat"),
+        lng=d.get("lng"),
+        radius_m=d.get("radius_m"),
+        polygon_geojson=d.get("polygon_geojson"),
+        price_min=d.get("price_min"),
+        price_max=d.get("price_max"),
+        rooms_min=d.get("rooms_min"),
+        rooms_max=d.get("rooms_max"),
+        max_results=d.get("max_results"),
+    )
